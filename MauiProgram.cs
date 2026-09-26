@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 
+using shopping_app.Data;
+
 namespace shopping_app
 {
 	public static class MauiProgram
@@ -14,6 +16,10 @@ namespace shopping_app
 					fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 					fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
 				});
+
+			// Reuse one database service. The file opens on the first call to
+			// GetConnectionAsync, rather than during app startup.
+			builder.Services.AddSingleton<AppDatabase>();
 
 #if DEBUG
 			builder.Logging.AddDebug();
