@@ -10,13 +10,12 @@ namespace shopping_app.Data
 	/// </summary>
 	public sealed class AppDatabase
 	{
-		// MAUI supplies the correct private, writable folder for each platform.
-		// Keep this filename stable so app updates reuse the existing database.
+		// MAUI supplies the private, writable folder for each platform.
+		// Keep the filename stable so app updates reuse existing data.
 		public string DatabasePath { get; } =
 			Path.Combine(FileSystem.AppDataDirectory, "shopping.db3");
 
-		// Prevent simultaneous callers from initializing the database twice.
-		// Waiting is asynchronous so it does not block the UI thread.
+		// Prevent concurrent callers from initializing the database twice.
 		private readonly SemaphoreSlim initializationGate = new(1, 1);
 
 		private SQLiteAsyncConnection? connection;
@@ -31,14 +30,13 @@ namespace shopping_app.Data
 
 			try
 			{
-				// Initialization has already completed.
+				// Return the existing connection once initialization succeeds.
 				if (connection is not null)
 				{
 					return connection;
 				}
 
-				// ReadWrite allows reading and saving data.
-				// Create creates a missing file without replacing existing data.
+				// Create makes a missing file without replacing existing data.
 				// FullMutex enables SQLite's serialized connection access.
 				var newConnection = new SQLiteAsyncConnection(
 					DatabasePath,
@@ -48,19 +46,22 @@ namespace shopping_app.Data
 
 				try
 				{
-					// The connection opens lazily. This command opens the file
-					// and enables enforcement of future foreign-key relationships.
+					// Open the connection and enable enforcement of any
+					// foreign-key relationships we define in the future.
 					await newConnection.ExecuteAsync(
 						"PRAGMA foreign_keys = ON;").ConfigureAwait(false);
 
-					// Create the Product table and its unique name index.
-					// Existing rows are preserved when the app starts again.
+					// Create missing tables without deleting existing rows.
 					await newConnection.CreateTableAsync<Product>()
+						.ConfigureAwait(false);
+
+					await newConnection.CreateTableAsync<ShoppingList>()
 						.ConfigureAwait(false);
 				}
 				catch
 				{
-					// Release the failed connection. A later call can retry.
+					// Leave initialization retryable if opening the database
+					// or creating its tables fails.
 					await newConnection.CloseAsync().ConfigureAwait(false);
 					throw;
 				}
@@ -71,14 +72,14 @@ namespace shopping_app.Data
 			}
 			finally
 			{
-				// Always release the gate, including when an exception occurs.
+				// Release the gate even when initialization throws an error.
 				initializationGate.Release();
 			}
 		}
 
 		/// <summary>
 		/// Saves a new product and returns it with its generated ID.
-		/// CreatedOn is set automatically in UTC; ModifiedOn starts as null.
+		/// CreatedOn is assigned in UTC; ModifiedOn starts as null.
 		/// </summary>
 		public async Task<Product> AddProductAsync(
 			string name,
@@ -91,7 +92,6 @@ namespace shopping_app.Data
 					"A product name is required.", nameof(name));
 			}
 
-			// Ensure the database and table exist before inserting.
 			var database = await GetConnectionAsync().ConfigureAwait(false);
 
 			var product = new Product
@@ -102,11 +102,42 @@ namespace shopping_app.Data
 				ModifiedOn = null
 			};
 
-			// SQLite generates the ID, which sqlite-net assigns to product.ID.
-			// Duplicate names raise a SQLiteException instead of replacing data.
+			// SQLite assigns ID, and sqlite-net copies it into product.ID.
+			// Duplicate names raise a SQLiteException.
 			await database.InsertAsync(product).ConfigureAwait(false);
 
 			return product;
+		}
+
+		/// <summary>
+		/// Saves a new shopping list and returns it with its generated ID.
+		/// Date and cost are optional; PickedUp defaults to false.
+		/// </summary>
+		public async Task<ShoppingList> AddShoppingListAsync(
+			DateOnly? shoppingDate = null,
+			decimal? totalCost = null,
+			bool pickedUp = false)
+		{
+			// The model converts the date and currency to their storage forms.
+			// Setting TotalCost also validates its decimal places.
+			var shoppingList = new ShoppingList
+			{
+				ShoppingDate = shoppingDate,
+				TotalCost = totalCost,
+				PickedUp = pickedUp,
+				ModifiedOn = null
+			};
+
+			// Ensure both tables exist before inserting the new row.
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			// Set the creation timestamp immediately before saving.
+			shoppingList.CreatedOn = DateTime.UtcNow;
+
+			// SQLite assigns ID and sqlite-net updates shoppingList.ID.
+			await database.InsertAsync(shoppingList).ConfigureAwait(false);
+
+			return shoppingList;
 		}
 	}
 }
