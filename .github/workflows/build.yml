@@ -31,6 +31,8 @@ jobs:
       - name: Restore dependencies
         run: >
           dotnet restore shopping-app.csproj
+          --runtime win-x64
+          -p:Configuration=Release
           -p:TargetFrameworks=net10.0-windows10.0.19041.0
 
       - name: Build Windows app
@@ -38,5 +40,6 @@ jobs:
           dotnet build shopping-app.csproj
           --configuration Release
           --framework net10.0-windows10.0.19041.0
+          --runtime win-x64
           -p:TargetFrameworks=net10.0-windows10.0.19041.0
           --no-restore
