@@ -7,12 +7,13 @@ namespace shopping_app
 	public partial class MainPage : ContentPage
 	{
 		private bool isLoading;
+		private bool sortAscending = true;
+		private List<Product> products = new();
 
 		public MainPage()
 		{
 			InitializeComponent();
 
-			// Wait until the page is ready before accessing its services.
 			Loaded += OnPageLoaded;
 		}
 
@@ -24,6 +25,7 @@ namespace shopping_app
 			}
 
 			isLoading = true;
+			SortProductsButton.IsEnabled = false;
 			StatusLabel.Text = "Loading products...";
 
 			try
@@ -39,15 +41,11 @@ namespace shopping_app
 
 				var connection = await database.GetConnectionAsync();
 
-				var products = await connection
+				products = await connection
 					.Table<Product>()
 					.ToListAsync();
 
-				ProductsView.ItemsSource = products
-					.OrderBy(
-						product => product.Name,
-						StringComparer.CurrentCultureIgnoreCase)
-					.ToList();
+				ApplySort();
 
 				StatusLabel.Text = $"{products.Count} products";
 
@@ -69,6 +67,43 @@ namespace shopping_app
 			finally
 			{
 				isLoading = false;
+				SortProductsButton.IsEnabled = products.Count > 0;
+			}
+		}
+
+		private void OnSortProductsClicked(object? sender, EventArgs e)
+		{
+			sortAscending = !sortAscending;
+			ApplySort();
+		}
+
+		private void ApplySort()
+		{
+			var sortedProducts = sortAscending
+				? products.OrderBy(
+					product => product.Name,
+					StringComparer.CurrentCultureIgnoreCase).ToList()
+				: products.OrderByDescending(
+					product => product.Name,
+					StringComparer.CurrentCultureIgnoreCase).ToList();
+
+			ProductsView.ItemsSource = sortedProducts;
+
+			SortProductsButton.Text = sortAscending ? "A|Z" : "Z|A";
+
+			SemanticProperties.SetDescription(
+				SortProductsButton,
+				sortAscending
+					? "Sorted A to Z. Tap to sort Z to A."
+					: "Sorted Z to A. Tap to sort A to Z.");
+
+			// Show the beginning of the newly sorted list.
+			if (sortedProducts.Count > 0)
+			{
+				ProductsView.ScrollTo(
+					0,
+					position: ScrollToPosition.Start,
+					animate: false);
 			}
 		}
 	}

@@ -26,13 +26,14 @@
             <Button
                 x:Name="SortProductsButton"
                 Grid.Column="1"
-                Text="Sort"
+                Text="A|Z"
                 FontSize="14"
                 Padding="0"
                 WidthRequest="56"
                 HeightRequest="56"
                 CornerRadius="28"
-                SemanticProperties.Description="Sort products" />
+                Clicked="OnSortProductsClicked"
+                SemanticProperties.Description="Sorted A to Z. Tap to sort Z to A." />
         </Grid>
 
         <!-- Scrollable product list -->
