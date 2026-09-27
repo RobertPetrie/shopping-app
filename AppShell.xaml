@@ -10,7 +10,9 @@
 
     <TabBar>
         <!-- Selected automatically at startup -->
-        <Tab Title="List">
+        <Tab
+            Icon="tab_list.png">
+
             <ShellContent
                 Title="List"
                 Route="Lists">
@@ -26,7 +28,9 @@
             </ShellContent>
         </Tab>
 
-        <Tab Title="Product">
+        <Tab
+            Icon="tab_product.png">
+
             <ShellContent
                 Title="Products"
                 Route="Products"
