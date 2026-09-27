@@ -13,8 +13,13 @@ namespace shopping_app.Models
 		[NotNull, Unique]
 		public string Name { get; set; } = string.Empty;
 
-		// The ? allows the description to be null.
+		// Optional product description.
 		public string? Description { get; set; }
+
+		// Relative path to one picture in the app's private storage.
+		// Example: "products/green-apples.jpg"
+		// Null means the product has no picture.
+		public string? ImagePath { get; set; }
 
 		// Assigned by AddProductAsync immediately before insertion.
 		[NotNull]
