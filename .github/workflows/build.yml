@@ -1,0 +1,42 @@
+name: Build Shopping App
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Build Windows app
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v5
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI Windows workload
+        run: dotnet workload install maui-windows
+
+      - name: Restore dependencies
+        run: >
+          dotnet restore shopping-app.csproj
+          -p:TargetFrameworks=net10.0-windows10.0.19041.0
+
+      - name: Build Windows app
+        run: >
+          dotnet build shopping-app.csproj
+          --configuration Release
+          --framework net10.0-windows10.0.19041.0
+          -p:TargetFrameworks=net10.0-windows10.0.19041.0
+          --no-restore
