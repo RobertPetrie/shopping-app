@@ -6,13 +6,36 @@
     x:Class="shopping_app.MainPage"
     Title="Products">
 
-    <Grid Padding="16" RowDefinitions="Auto,*" RowSpacing="12">
+    <Grid
+        Padding="16"
+        RowDefinitions="Auto,*,Auto"
+        RowSpacing="12">
 
-        <Label
-            x:Name="StatusLabel"
-            Text="Loading products..."
-            FontSize="16" />
+        <!-- Product count and sort button -->
+        <Grid
+            Grid.Row="0"
+            ColumnDefinitions="*,Auto"
+            ColumnSpacing="12">
 
+            <Label
+                x:Name="StatusLabel"
+                Text="Loading products..."
+                FontSize="16"
+                VerticalOptions="Center" />
+
+            <Button
+                x:Name="SortProductsButton"
+                Grid.Column="1"
+                Text="Sort"
+                FontSize="14"
+                Padding="0"
+                WidthRequest="56"
+                HeightRequest="56"
+                CornerRadius="28"
+                SemanticProperties.Description="Sort products" />
+        </Grid>
+
+        <!-- Scrollable product list -->
         <CollectionView
             x:Name="ProductsView"
             Grid.Row="1"
@@ -45,6 +68,20 @@
             </CollectionView.ItemTemplate>
 
         </CollectionView>
+
+        <!-- Fixed add button -->
+        <Button
+            x:Name="AddProductButton"
+            Grid.Row="2"
+            Text="+"
+            FontSize="32"
+            Padding="0"
+            WidthRequest="56"
+            HeightRequest="56"
+            CornerRadius="28"
+            HorizontalOptions="Start"
+            SemanticProperties.Description="Add a product" />
+
     </Grid>
 
 </ContentPage>
