@@ -125,6 +125,9 @@ namespace shopping_app
 			};
 
 			var connection = await database.GetConnectionAsync();
+			System.Diagnostics.Debug.WriteLine(
+			$"Database location: {database.DatabasePath}");
+
 			int createdCount = 0;
 
 			foreach (var item in testProducts)
