@@ -9,8 +9,8 @@
     Shell.NavBarIsVisible="True"
     Shell.TabBarIsVisible="False">
 
-    <!-- Keep the form accessible on smaller screens and when
-         the on-screen keyboard reduces the available space. -->
+    <!-- Allow scrolling when the keyboard or a smaller screen
+         reduces the space available for the form. -->
     <ScrollView>
         <VerticalStackLayout
             Padding="24"
@@ -18,10 +18,11 @@
             MaximumWidthRequest="600"
             HorizontalOptions="Fill">
 
-            <!-- Product names will be validated when saving. -->
+            <!-- The asterisk identifies the required field.
+                 Keep the requirement explicit for screen readers. -->
             <VerticalStackLayout Spacing="6">
                 <Label
-                    Text="Product name (required)"
+                    Text="Product name *"
                     FontSize="16"
                     FontAttributes="Bold" />
 
@@ -30,12 +31,20 @@
                     Placeholder="For example, Green apples"
                     ReturnType="Next"
                     SemanticProperties.Description="Product name, required" />
+
+                <!-- Reserved for an inline error when Save validation
+                     is connected, such as "Enter a product name". -->
+                <Label
+                    x:Name="ValidationLabel"
+                    IsVisible="False"
+                    TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}"
+                    FontSize="14" />
             </VerticalStackLayout>
 
-            <!-- Allow an optional description with multiple lines. -->
+            <!-- Description can be left empty. -->
             <VerticalStackLayout Spacing="6">
                 <Label
-                    Text="Description (optional)"
+                    Text="Description"
                     FontSize="16"
                     FontAttributes="Bold" />
 
@@ -46,19 +55,17 @@
                     SemanticProperties.Description="Product description, optional" />
             </VerticalStackLayout>
 
-            <!-- Hidden until the save logic has validation feedback. -->
+            <!-- Explain the asterisk before the form actions. -->
             <Label
-                x:Name="ValidationLabel"
-                IsVisible="False"
-                TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}"
-                FontSize="14" />
+                Text="* Required"
+                FontSize="12"
+                TextColor="{AppThemeBinding Light=#555555, Dark=#CCCCCC}" />
 
-            <!-- Use symbols instead of visible text.
-                 Tooltips and screen-reader labels explain each action.
-                 Click handlers will be connected in the next step. -->
+            <!-- Icon buttons retain descriptive tooltips and
+                 screen-reader labels. Handlers will be added next. -->
             <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
 
-                <!-- Checkmark: save the product. -->
+                <!-- Checkmark represents Save. -->
                 <Button
                     x:Name="SaveProductButton"
                     Grid.Column="0"
@@ -69,7 +76,7 @@
                     ToolTipProperties.Text="Save product"
                     SemanticProperties.Description="Save product" />
 
-                <!-- Cross: cancel without saving. -->
+                <!-- Cross represents Cancel. -->
                 <Button
                     x:Name="CancelButton"
                     Grid.Column="1"
