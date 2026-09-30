@@ -77,6 +77,39 @@ namespace shopping_app
 			ApplySort();
 		}
 
+		/// <summary>
+		/// Opens the Add Product page without creating a database record.
+		/// </summary>
+		private async void OnAddProductClicked(object? sender, EventArgs e)
+		{
+			// Prevent repeated taps while navigation is in progress.
+			AddProductButton.IsEnabled = false;
+
+			try
+			{
+				// Open the route registered in AppShell.
+				// Shell provides navigation back to the products list.
+				await Shell.Current.GoToAsync(
+					nameof(shopping_app.Pages.ProductDetailPage));
+			}
+			catch (Exception ex)
+			{
+				// Record technical details for troubleshooting.
+				System.Diagnostics.Debug.WriteLine(
+					$"Could not open ProductDetailPage: {ex}");
+
+				await DisplayAlertAsync(
+					"Add Product",
+					"Could not open the product form.",
+					"OK");
+			}
+			finally
+			{
+				// Restore the button whether navigation succeeds or fails.
+				AddProductButton.IsEnabled = true;
+			}
+		}
+
 		private void ApplySort()
 		{
 			var sortedProducts = sortAscending

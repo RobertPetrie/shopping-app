@@ -6,12 +6,13 @@
     x:Class="shopping_app.MainPage"
     Title="Products">
 
+    <!-- Keep the count and buttons fixed while the middle row scrolls. -->
     <Grid
         Padding="16"
         RowDefinitions="Auto,*,Auto"
         RowSpacing="12">
 
-        <!-- Product count and sort button -->
+        <!-- Display the product count with the sort button on the right. -->
         <Grid
             Grid.Row="0"
             ColumnDefinitions="*,Auto"
@@ -23,6 +24,7 @@
                 FontSize="16"
                 VerticalOptions="Center" />
 
+            <!-- Toggle between alphabetical and reverse alphabetical order. -->
             <Button
                 x:Name="SortProductsButton"
                 Grid.Column="1"
@@ -34,15 +36,17 @@
                 CornerRadius="28"
                 Clicked="OnSortProductsClicked"
                 SemanticProperties.Description="Sorted A to Z. Tap to sort Z to A." />
+
         </Grid>
 
-        <!-- Scrollable product list -->
+        <!-- Display product names in a vertically scrollable list. -->
         <CollectionView
             x:Name="ProductsView"
             Grid.Row="1"
             SelectionMode="None"
             ItemsLayout="VerticalList">
 
+            <!-- Display a message when the list has no items. -->
             <CollectionView.EmptyView>
                 <Label
                     Text="No products to display."
@@ -50,6 +54,7 @@
                     HorizontalTextAlignment="Center" />
             </CollectionView.EmptyView>
 
+            <!-- Use the same layout for each product. -->
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:Product">
                     <VerticalStackLayout Padding="0,12" Spacing="6">
@@ -59,6 +64,7 @@
                             FontSize="20"
                             FontAttributes="Bold" />
 
+                        <!-- Separate entries with a theme-aware line. -->
                         <BoxView
                             Margin="0,8,0,0"
                             HeightRequest="1"
@@ -70,7 +76,8 @@
 
         </CollectionView>
 
-        <!-- Fixed add button -->
+        <!-- Open the product form.
+             This button stays below the list while products scroll. -->
         <Button
             x:Name="AddProductButton"
             Grid.Row="2"
@@ -81,6 +88,7 @@
             HeightRequest="56"
             CornerRadius="28"
             HorizontalOptions="Start"
+            Clicked="OnAddProductClicked"
             SemanticProperties.Description="Add a product" />
 
     </Grid>
