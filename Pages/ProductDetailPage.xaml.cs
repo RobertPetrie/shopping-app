@@ -6,18 +6,18 @@ using SQLite;
 namespace shopping_app.Pages
 {
 	/// <summary>
-	/// Adds new products or displays an existing product for editing.
-	/// Saving changes to existing products will be added next.
+	/// Shared form for adding and updating products.
+	/// Changes reach the database only when Save succeeds.
 	/// </summary>
 	public partial class ProductDetailPage : ContentPage, IQueryAttributable
 	{
 		private bool isBusy;
 
-		// Null means Add mode; otherwise identifies the product being edited.
+		// Null means Add mode; otherwise identifies the existing record.
 		private int? editingProductId;
 
-		// Remember a successful insertion if navigation back fails.
-		// Retrying navigation must not insert the same product again.
+		// Remember a successful save if navigation back fails.
+		// Retrying must not insert again or repeat the update.
 		private int? savedProductId;
 
 		public ProductDetailPage()
@@ -26,8 +26,8 @@ namespace shopping_app.Pages
 		}
 
 		/// <summary>
-		/// Populate the form when opened from a product row.
-		/// Copy values into controls so Cancel cannot modify the list item.
+		/// Copy the selected product's values into the form.
+		/// Editing controls does not modify the original list object.
 		/// </summary>
 		public void ApplyQueryAttributes(IDictionary<string, object> query)
 		{
@@ -42,12 +42,16 @@ namespace shopping_app.Pages
 
 				ClearNameError();
 
-				// Updating existing records is a separate commit.
-				SaveProductButton.IsEnabled = false;
+				// Save now supports both Add and Edit modes.
+				SaveProductButton.IsEnabled = !isBusy;
 
 				ToolTipProperties.SetText(
 					SaveProductButton,
-					"Saving edits is not available yet");
+					"Save changes");
+
+				SemanticProperties.SetDescription(
+					SaveProductButton,
+					"Save product changes");
 
 				SemanticProperties.SetDescription(
 					CancelButton,
@@ -56,13 +60,13 @@ namespace shopping_app.Pages
 		}
 
 		/// <summary>
-		/// Validate and save a new product, then return to the list.
-		/// Edit mode cannot run this insertion logic.
+		/// Validate the required name and check for duplicates.
+		/// Insert or update, then return the saved ID to the products list.
 		/// </summary>
 		private async void OnSaveClicked(object? sender, EventArgs e)
 		{
-			// Block repeat operations and prevent insertion in Edit mode.
-			if (isBusy || editingProductId.HasValue)
+			// Prevent double-clicks from starting multiple save operations.
+			if (isBusy)
 			{
 				return;
 			}
@@ -80,8 +84,7 @@ namespace shopping_app.Pages
 
 			try
 			{
-				// Skip insertion if saving already succeeded but
-				// navigation back failed on the previous attempt.
+				// If an earlier save succeeded, only retry navigation.
 				if (savedProductId is null)
 				{
 					var services = Handler?.MauiContext?.Services
@@ -91,6 +94,21 @@ namespace shopping_app.Pages
 					var database =
 						services.GetRequiredService<AppDatabase>();
 
+					// Exclude this product when editing so its existing
+					// name does not count as a duplicate of itself.
+					bool duplicateName = await database.ProductNameExistsAsync(
+						name,
+						editingProductId);
+
+					if (duplicateName)
+					{
+						// Enable the field before attempting to focus it.
+						SetBusy(false);
+						ShowNameError(
+							"A product with this name already exists.");
+						return;
+					}
+
 					string? description =
 						ProductDescriptionEditor.Text?.Trim();
 
@@ -99,23 +117,53 @@ namespace shopping_app.Pages
 						description = null;
 					}
 
-					// The database method assigns ID and CreatedOn.
-					var product = await database.AddProductAsync(
-						name,
-						description);
+					if (editingProductId is int id)
+					{
+						// Update the existing record without changing its ID.
+						await database.UpdateProductAsync(
+							id,
+							name,
+							description);
 
-					savedProductId = product.ID;
+						savedProductId = id;
+					}
+					else
+					{
+						// Add mode retains the existing insertion behavior.
+						var product = await database.AddProductAsync(
+							name,
+							description);
+
+						savedProductId = product.ID;
+					}
 				}
 
+				// The existing main page refreshes, preserves its sort,
+				// scrolls to this ID, and highlights the saved product.
 				await ReturnToProductsAsync();
 			}
 			catch (SQLiteException ex)
 				when (ex.Result == SQLite3.Result.Constraint
 					  && savedProductId is null)
 			{
-				// The Product table requires a unique name.
+				// The unique constraint catches a duplicate even if it was
+				// created after our initial duplicate-name check.
+				System.Diagnostics.Debug.WriteLine(ex);
+
 				SetBusy(false);
-				ShowNameError("A product with this name already exists.");
+				ShowNameError(
+					"A product with this name already exists.");
+			}
+			catch (KeyNotFoundException ex)
+			{
+				// The product may have been deleted since the form opened.
+				System.Diagnostics.Debug.WriteLine(ex);
+
+				await DisplayAlertAsync(
+					"Product unavailable",
+					"This product no longer exists. "
+						+ "Cancel and return to the products list.",
+					"OK");
 			}
 			catch (Exception ex)
 			{
@@ -123,7 +171,7 @@ namespace shopping_app.Pages
 					$"Could not complete product save: {ex}");
 
 				await DisplayAlertAsync(
-					"Add Product",
+					"Save Product",
 					savedProductId.HasValue
 						? "The product was saved, but the list could not "
 						  + "be opened. Tap Save again to return."
@@ -137,8 +185,8 @@ namespace shopping_app.Pages
 		}
 
 		/// <summary>
-		/// Return without saving form changes.
-		/// If an insertion already succeeded, still return its saved ID.
+		/// Discard unsaved form values and return to the products list.
+		/// An already successful save cannot be undone by Cancel.
 		/// </summary>
 		private async void OnCancelClicked(object? sender, EventArgs e)
 		{
@@ -169,8 +217,8 @@ namespace shopping_app.Pages
 		}
 
 		/// <summary>
-		/// Pop this page and return a saved ID only after an actual save.
-		/// Opening an existing product does not count as saving it.
+		/// Return the saved ID only after an insert or update succeeds.
+		/// Single-use parameters prevent repeated highlighting later.
 		/// </summary>
 		private Task ReturnToProductsAsync()
 		{
@@ -193,12 +241,15 @@ namespace shopping_app.Pages
 			ProductDescriptionEditor.Focus();
 		}
 
-		// Clear previous feedback while the user corrects the name.
+		// Remove previous feedback while the user corrects the name.
 		private void OnNameChanged(object? sender, TextChangedEventArgs e)
 		{
 			ClearNameError();
 		}
 
+		/// <summary>
+		/// Explain the error, highlight the field, and move focus to it.
+		/// </summary>
 		private void ShowNameError(string message)
 		{
 			ValidationLabel.Text = message;
@@ -217,20 +268,16 @@ namespace shopping_app.Pages
 		}
 
 		/// <summary>
-		/// Prevent repeated operations while saving or navigating.
-		/// Keep Save disabled in Edit mode until update logic is added.
+		/// Disable actions during saving or navigation.
+		/// After saving, lock fields while allowing navigation to be retried.
 		/// </summary>
 		private void SetBusy(bool busy)
 		{
 			isBusy = busy;
 
-			SaveProductButton.IsEnabled =
-				!busy && editingProductId is null;
-
+			SaveProductButton.IsEnabled = !busy;
 			CancelButton.IsEnabled = !busy;
 
-			// After a successful insertion, lock the fields if
-			// navigation back needs to be retried.
 			ProductNameEntry.IsEnabled =
 				!busy && savedProductId is null;
 
