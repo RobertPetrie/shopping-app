@@ -9,7 +9,7 @@
     Shell.NavBarIsVisible="True"
     Shell.TabBarIsVisible="False">
 
-    <!-- Allow the form to scroll on smaller screens or when
+    <!-- Keep the form accessible on smaller screens and when
          the on-screen keyboard reduces the available space. -->
     <ScrollView>
         <VerticalStackLayout
@@ -18,8 +18,7 @@
             MaximumWidthRequest="600"
             HorizontalOptions="Fill">
 
-            <!-- A name is required when saving the product.
-                 Validation will be added in the C# code. -->
+            <!-- Product names will be validated when saving. -->
             <VerticalStackLayout Spacing="6">
                 <Label
                     Text="Product name (required)"
@@ -33,7 +32,7 @@
                     SemanticProperties.Description="Product name, required" />
             </VerticalStackLayout>
 
-            <!-- The description is optional and supports multiple lines. -->
+            <!-- Allow an optional description with multiple lines. -->
             <VerticalStackLayout Spacing="6">
                 <Label
                     Text="Description (optional)"
@@ -47,27 +46,40 @@
                     SemanticProperties.Description="Product description, optional" />
             </VerticalStackLayout>
 
-            <!-- Reserved for validation feedback from the save logic.
-                 Hidden until there is a message to display. -->
+            <!-- Hidden until the save logic has validation feedback. -->
             <Label
                 x:Name="ValidationLabel"
                 IsVisible="False"
                 TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}"
                 FontSize="14" />
 
-            <!-- Save and Cancel handlers will be connected next. -->
+            <!-- Use symbols instead of visible text.
+                 Tooltips and screen-reader labels explain each action.
+                 Click handlers will be connected in the next step. -->
             <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+
+                <!-- Checkmark: save the product. -->
                 <Button
                     x:Name="SaveProductButton"
                     Grid.Column="0"
-                    Text="Save"
+                    Text="&#x2713;"
+                    FontSize="28"
+                    HeightRequest="56"
+                    Padding="0"
+                    ToolTipProperties.Text="Save product"
                     SemanticProperties.Description="Save product" />
 
+                <!-- Cross: cancel without saving. -->
                 <Button
                     x:Name="CancelButton"
                     Grid.Column="1"
-                    Text="Cancel"
+                    Text="&#x2715;"
+                    FontSize="28"
+                    HeightRequest="56"
+                    Padding="0"
+                    ToolTipProperties.Text="Cancel"
                     SemanticProperties.Description="Cancel adding a product" />
+
             </Grid>
 
         </VerticalStackLayout>
