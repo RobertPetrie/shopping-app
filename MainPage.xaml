@@ -6,12 +6,13 @@
     x:Class="shopping_app.MainPage"
     Title="Products">
 
+    <!-- The middle row scrolls; the controls remain fixed. -->
     <Grid
         Padding="16"
         RowDefinitions="Auto,*,Auto"
         RowSpacing="12">
 
-        <!-- Product count and sort button -->
+        <!-- Display the product count and current sort direction. -->
         <Grid
             Grid.Row="0"
             ColumnDefinitions="*,Auto"
@@ -36,7 +37,7 @@
                 SemanticProperties.Description="Sorted A to Z. Tap to sort Z to A." />
         </Grid>
 
-        <!-- Scrollable product list -->
+        <!-- Product selection is handled by the row's tap gesture. -->
         <CollectionView
             x:Name="ProductsView"
             Grid.Row="1"
@@ -52,25 +53,45 @@
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:Product">
-                    <VerticalStackLayout Padding="0,12" Spacing="6">
+
+                    <!-- Track row creation and recycling so highlighting
+                         stays with the correct product. -->
+                    <Grid
+                        Padding="8,12"
+                        RowDefinitions="Auto,Auto"
+                        RowSpacing="14"
+                        BackgroundColor="Transparent"
+                        Loaded="OnProductRowLoaded"
+                        Unloaded="OnProductRowUnloaded"
+                        BindingContextChanged="OnProductRowBindingContextChanged">
+
+                        <!-- Pass this row's product to the tap handler. -->
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer
+                                NumberOfTapsRequired="1"
+                                Tapped="OnProductTapped"
+                                CommandParameter="{Binding .}" />
+                        </Grid.GestureRecognizers>
 
                         <Label
                             Text="{Binding Name}"
                             FontSize="20"
-                            FontAttributes="Bold" />
+                            FontAttributes="Bold"
+                            SemanticProperties.Hint="Tap to edit product" />
 
+                        <!-- Separate product rows in either theme. -->
                         <BoxView
-                            Margin="0,8,0,0"
+                            Grid.Row="1"
                             HeightRequest="1"
                             Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
+                    </Grid>
 
-                    </VerticalStackLayout>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
 
         </CollectionView>
 
-        <!-- Fixed add button -->
+        <!-- Open the same detail page with an empty form for Add mode. -->
         <Button
             x:Name="AddProductButton"
             Grid.Row="2"
@@ -81,6 +102,7 @@
             HeightRequest="56"
             CornerRadius="28"
             HorizontalOptions="Start"
+            Clicked="OnAddProductClicked"
             SemanticProperties.Description="Add a product" />
 
     </Grid>

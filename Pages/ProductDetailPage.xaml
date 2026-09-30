@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<!-- Show back navigation while hiding the main tabs. -->
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="shopping_app.Pages.ProductDetailPage"
+    Title="Add Product"
+    Shell.NavBarIsVisible="True"
+    Shell.TabBarIsVisible="False">
+
+    <ScrollView>
+        <VerticalStackLayout
+            Padding="24"
+            Spacing="20"
+            MaximumWidthRequest="600"
+            HorizontalOptions="Fill">
+
+            <!-- Highlight the name field when validation fails. -->
+            <VerticalStackLayout Spacing="6">
+                <Label
+                    Text="Product name *"
+                    FontSize="16"
+                    FontAttributes="Bold" />
+
+                <Border
+                    x:Name="NameBorder"
+                    Stroke="Transparent"
+                    StrokeThickness="2"
+                    Padding="4">
+
+                    <Entry
+                        x:Name="ProductNameEntry"
+                        Placeholder="For example, Green apples"
+                        ReturnType="Next"
+                        Completed="OnNameCompleted"
+                        TextChanged="OnNameChanged"
+                        SemanticProperties.Description="Product name, required" />
+                </Border>
+
+                <!-- Display validation feedback beside the relevant field. -->
+                <Label
+                    x:Name="ValidationLabel"
+                    IsVisible="False"
+                    FontSize="14"
+                    TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}" />
+            </VerticalStackLayout>
+
+            <!-- An empty description is saved as null. -->
+            <VerticalStackLayout Spacing="6">
+                <Label
+                    Text="Description"
+                    FontSize="16"
+                    FontAttributes="Bold" />
+
+                <Editor
+                    x:Name="ProductDescriptionEditor"
+                    Placeholder="Add any useful details about this product"
+                    HeightRequest="140"
+                    SemanticProperties.Description="Product description, optional" />
+            </VerticalStackLayout>
+
+            <Label
+                Text="* Required"
+                FontSize="12"
+                TextColor="{AppThemeBinding Light=#555555, Dark=#CCCCCC}" />
+
+            <!-- Indicate that saving or navigation is in progress. -->
+            <ActivityIndicator
+                x:Name="SavingIndicator"
+                IsVisible="False"
+                IsRunning="False" />
+
+            <!-- Both actions are disabled while an operation is running. -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Button
+                    x:Name="SaveProductButton"
+                    Grid.Column="0"
+                    Text="&#x2713;"
+                    FontSize="28"
+                    HeightRequest="56"
+                    Padding="0"
+                    Clicked="OnSaveClicked"
+                    ToolTipProperties.Text="Save product"
+                    SemanticProperties.Description="Save product" />
+
+                <Button
+                    x:Name="CancelButton"
+                    Grid.Column="1"
+                    Text="&#x2715;"
+                    FontSize="28"
+                    HeightRequest="56"
+                    Padding="0"
+                    Clicked="OnCancelClicked"
+                    ToolTipProperties.Text="Cancel"
+                    SemanticProperties.Description="Cancel adding a product" />
+            </Grid>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

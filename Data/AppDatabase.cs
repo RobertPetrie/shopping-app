@@ -5,24 +5,23 @@ using SQLite;
 namespace shopping_app.Data
 {
 	/// <summary>
-	/// Manages the shared SQLite connection, initializes tables,
-	/// and provides methods for accessing stored data.
+	/// Initializes the local database and provides methods for stored data.
+	/// Product names are compared without regard to capitalization.
 	/// </summary>
 	public sealed class AppDatabase
 	{
-		// MAUI supplies the private, writable folder for each platform.
-		// Keep this filename stable so app updates reuse existing data.
+		// Keep the filename stable so app updates reuse existing data.
 		public string DatabasePath { get; } =
 			Path.Combine(FileSystem.AppDataDirectory, "shopping.db3");
 
-		// Prevent concurrent callers from initializing the database twice.
+		// Prevent simultaneous callers from initializing the database twice.
 		private readonly SemaphoreSlim initializationGate = new(1, 1);
 
 		private SQLiteAsyncConnection? connection;
 
 		/// <summary>
-		/// Opens the database and creates missing tables on first use.
-		/// Later calls reuse the initialized connection.
+		/// Open the database and initialize its tables on first access.
+		/// Later calls reuse the same connection.
 		/// </summary>
 		public async Task<SQLiteAsyncConnection> GetConnectionAsync()
 		{
@@ -35,10 +34,7 @@ namespace shopping_app.Data
 					return connection;
 				}
 
-				// Create makes a missing file without replacing existing data.
-				// FullMutex enables SQLite's serialized connection access.
-				// DateTime values are stored as ticks, matching the INTEGER
-				// CreatedOn column in the explicit table definition below.
+				// Preserve existing data and store DateTime values as ticks.
 				var newConnection = new SQLiteAsyncConnection(
 					DatabasePath,
 					SQLiteOpenFlags.ReadWrite |
@@ -48,25 +44,18 @@ namespace shopping_app.Data
 
 				try
 				{
-					// Foreign-key constraints must be enabled per connection.
+					// Foreign-key enforcement is enabled per connection.
 					await newConnection.ExecuteAsync(
 						"PRAGMA foreign_keys = ON;").ConfigureAwait(false);
 
-					// Create parent tables before their linking table.
+					// Create parent tables before the linking table.
 					await newConnection.CreateTableAsync<Product>()
 						.ConfigureAwait(false);
 
 					await newConnection.CreateTableAsync<ShoppingList>()
 						.ConfigureAwait(false);
 
-					// Explicit SQL defines the composite primary key and
-					// actual foreign-key constraints.
-					//
-					// RESTRICT prevents deleting or changing a parent's ID
-					// while linked entries still reference it.
-					//
-					// IF NOT EXISTS preserves an existing table and its rows.
-					// Future schema changes will need migration logic.
+					// Preserve existing tables and records.
 					await newConnection.ExecuteAsync(
 						"""
                         CREATE TABLE IF NOT EXISTS "ShoppingListProduct"
@@ -90,9 +79,7 @@ namespace shopping_app.Data
                         );
                         """).ConfigureAwait(false);
 
-					// The composite key already indexes ShoppingListID first.
-					// This separate index speeds up lookups by ProductID,
-					// including SQLite's foreign-key checks.
+					// Support lookups by ProductID.
 					await newConnection.ExecuteAsync(
 						"""
                         CREATE INDEX IF NOT EXISTS
@@ -107,20 +94,88 @@ namespace shopping_app.Data
 					throw;
 				}
 
-				// Publish the connection only after initialization succeeds.
 				connection = newConnection;
 				return connection;
 			}
 			finally
 			{
-				// Release the gate even if initialization throws an error.
 				initializationGate.Release();
 			}
 		}
 
 		/// <summary>
-		/// Saves a new product and returns it with its generated ID.
-		/// CreatedOn is assigned in UTC; ModifiedOn starts as null.
+		/// Compare names using the same rule everywhere.
+		/// Ignore capitalization and surrounding whitespace.
+		/// Exclude the current product when checking an edit.
+		/// </summary>
+		private static bool ContainsDuplicateName(
+			IEnumerable<Product> products,
+			string name,
+			int? excludingProductId)
+		{
+			string trimmedName = name.Trim();
+
+			return products.Any(product =>
+				product.ID != excludingProductId &&
+				string.Equals(
+					product.Name.Trim(),
+					trimmedName,
+					StringComparison.OrdinalIgnoreCase));
+		}
+
+		/// <summary>
+		/// Provide the form's duplicate-name check.
+		/// Keeping the current product's name or changing only its
+		/// capitalization is allowed.
+		/// </summary>
+		public async Task<bool> ProductNameExistsAsync(
+			string name,
+			int? excludingProductId = null)
+		{
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			// Read only the fields required for comparison.
+			// Compare in C# so the rule is consistent across platforms.
+			var products = await database.QueryAsync<Product>(
+				"""
+                SELECT "ID", "Name"
+                FROM "Product";
+                """).ConfigureAwait(false);
+
+			return ContainsDuplicateName(
+				products,
+				name,
+				excludingProductId);
+		}
+
+		/// <summary>
+		/// Enforce the same name rule inside a write transaction.
+		/// This prevents callers from bypassing the form's validation.
+		/// </summary>
+		private static void EnsureUniqueProductName(
+			SQLiteConnection database,
+			string name,
+			int? excludingProductId = null)
+		{
+			var products = database.Query<Product>(
+				"""
+                SELECT "ID", "Name"
+                FROM "Product";
+                """);
+
+			if (ContainsDuplicateName(products, name, excludingProductId))
+			{
+				// The existing form already handles this result by showing
+				// its duplicate-name message beside the name field.
+				throw SQLiteException.New(
+					SQLite3.Result.Constraint,
+					"A product with this name already exists.");
+			}
+		}
+
+		/// <summary>
+		/// Insert a product after validating its required and unique name.
+		/// CreatedOn is UTC; ModifiedOn starts as null.
 		/// </summary>
 		public async Task<Product> AddProductAsync(
 			string name,
@@ -142,23 +197,87 @@ namespace shopping_app.Data
 				ModifiedOn = null
 			};
 
-			// SQLite assigns ID and sqlite-net updates product.ID.
-			// Duplicate names raise a SQLiteException.
-			await database.InsertAsync(product).ConfigureAwait(false);
+			// Check and insert together, rather than relying only on the
+			// earlier form check or the case-sensitive database index.
+			await database.RunInTransactionAsync(transaction =>
+			{
+				EnsureUniqueProductName(transaction, product.Name);
+
+				// SQLite assigns the ID and updates product.ID.
+				transaction.Insert(product);
+			}).ConfigureAwait(false);
 
 			return product;
 		}
 
 		/// <summary>
-		/// Saves a new shopping list and returns it with its generated ID.
-		/// Date and cost are optional; PickedUp defaults to false.
+		/// Update the name and description of an existing product.
+		/// Preserve its ID, CreatedOn, ImagePath, and shopping-list links.
+		/// </summary>
+		public async Task UpdateProductAsync(
+			int productId,
+			string name,
+			string? description = null)
+		{
+			if (productId <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(productId),
+					"Product ID must be greater than zero.");
+			}
+
+			if (string.IsNullOrWhiteSpace(name))
+			{
+				throw new ArgumentException(
+					"A product name is required.", nameof(name));
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			string trimmedName = name.Trim();
+
+			// Check and update in one transaction.
+			await database.RunInTransactionAsync(transaction =>
+			{
+				// Excluding this ID means a product does not conflict
+				// with itself when its name is unchanged.
+				EnsureUniqueProductName(
+					transaction,
+					trimmedName,
+					productId);
+
+				// Change only the editable fields and modification time.
+				// Parameters keep user-entered text separate from SQL.
+				int rowsUpdated = transaction.Execute(
+					"""
+                    UPDATE "Product"
+                    SET "Name" = ?,
+                        "Description" = ?,
+                        "ModifiedOn" = ?
+                    WHERE "ID" = ?;
+                    """,
+					trimmedName,
+					description,
+					DateTime.UtcNow.Ticks,
+					productId);
+
+				// Do not silently insert a replacement for a missing record.
+				if (rowsUpdated == 0)
+				{
+					throw new KeyNotFoundException(
+						"This product no longer exists.");
+				}
+			}).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Save a new shopping list and return its generated ID.
 		/// </summary>
 		public async Task<ShoppingList> AddShoppingListAsync(
 			DateOnly? shoppingDate = null,
 			decimal? totalCost = null,
 			bool pickedUp = false)
 		{
-			// The model converts the date and currency to storage values.
+			// The model converts dates and currency to storage values.
 			var shoppingList = new ShoppingList
 			{
 				ShoppingDate = shoppingDate,
@@ -177,15 +296,14 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
-		/// Adds an existing product to an existing shopping list.
-		/// Each product can appear only once in a given list.
+		/// Link an existing product to an existing shopping list.
+		/// A product can appear only once in a particular list.
 		/// </summary>
 		public async Task<ShoppingListProduct> AddShoppingListProductAsync(
 			int shoppingListID,
 			int productID,
 			decimal price)
 		{
-			// Auto-generated parent IDs start at 1.
 			if (shoppingListID <= 0)
 			{
 				throw new ArgumentOutOfRangeException(
@@ -210,11 +328,9 @@ namespace shopping_app.Data
 
 			var database = await GetConnectionAsync().ConfigureAwait(false);
 
-			// Automatically populate the timestamp immediately before saving.
 			entry.CreatedOn = DateTime.UtcNow;
 
-			// SQLite enforces both parent references and the composite key.
-			// Missing parents or a duplicate pair raise a SQLiteException.
+			// SQLite enforces parent references and the composite key.
 			await database.InsertAsync(entry).ConfigureAwait(false);
 
 			return entry;
