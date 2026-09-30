@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 
-<!-- Show the header and back button while hiding the main tabs. -->
+<!-- Show back navigation while hiding the main tabs. -->
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
@@ -9,8 +9,6 @@
     Shell.NavBarIsVisible="True"
     Shell.TabBarIsVisible="False">
 
-    <!-- Allow scrolling when the keyboard or a smaller screen
-         reduces the space available for the form. -->
     <ScrollView>
         <VerticalStackLayout
             Padding="24"
@@ -18,30 +16,37 @@
             MaximumWidthRequest="600"
             HorizontalOptions="Fill">
 
-            <!-- The asterisk identifies the required field.
-                 Keep the requirement explicit for screen readers. -->
+            <!-- Highlight the name field when validation fails. -->
             <VerticalStackLayout Spacing="6">
                 <Label
                     Text="Product name *"
                     FontSize="16"
                     FontAttributes="Bold" />
 
-                <Entry
-                    x:Name="ProductNameEntry"
-                    Placeholder="For example, Green apples"
-                    ReturnType="Next"
-                    SemanticProperties.Description="Product name, required" />
+                <Border
+                    x:Name="NameBorder"
+                    Stroke="Transparent"
+                    StrokeThickness="2"
+                    Padding="4">
 
-                <!-- Reserved for an inline error when Save validation
-                     is connected, such as "Enter a product name". -->
+                    <Entry
+                        x:Name="ProductNameEntry"
+                        Placeholder="For example, Green apples"
+                        ReturnType="Next"
+                        Completed="OnNameCompleted"
+                        TextChanged="OnNameChanged"
+                        SemanticProperties.Description="Product name, required" />
+                </Border>
+
+                <!-- Display validation feedback beside the relevant field. -->
                 <Label
                     x:Name="ValidationLabel"
                     IsVisible="False"
-                    TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}"
-                    FontSize="14" />
+                    FontSize="14"
+                    TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}" />
             </VerticalStackLayout>
 
-            <!-- Description can be left empty. -->
+            <!-- An empty description is saved as null. -->
             <VerticalStackLayout Spacing="6">
                 <Label
                     Text="Description"
@@ -55,17 +60,19 @@
                     SemanticProperties.Description="Product description, optional" />
             </VerticalStackLayout>
 
-            <!-- Explain the asterisk before the form actions. -->
             <Label
                 Text="* Required"
                 FontSize="12"
                 TextColor="{AppThemeBinding Light=#555555, Dark=#CCCCCC}" />
 
-            <!-- Icon buttons retain descriptive tooltips and
-                 screen-reader labels. Handlers will be added next. -->
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <!-- Indicate that saving or navigation is in progress. -->
+            <ActivityIndicator
+                x:Name="SavingIndicator"
+                IsVisible="False"
+                IsRunning="False" />
 
-                <!-- Checkmark represents Save. -->
+            <!-- Both actions are disabled while an operation is running. -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                 <Button
                     x:Name="SaveProductButton"
                     Grid.Column="0"
@@ -73,10 +80,10 @@
                     FontSize="28"
                     HeightRequest="56"
                     Padding="0"
+                    Clicked="OnSaveClicked"
                     ToolTipProperties.Text="Save product"
                     SemanticProperties.Description="Save product" />
 
-                <!-- Cross represents Cancel. -->
                 <Button
                     x:Name="CancelButton"
                     Grid.Column="1"
@@ -84,9 +91,9 @@
                     FontSize="28"
                     HeightRequest="56"
                     Padding="0"
+                    Clicked="OnCancelClicked"
                     ToolTipProperties.Text="Cancel"
                     SemanticProperties.Description="Cancel adding a product" />
-
             </Grid>
 
         </VerticalStackLayout>

@@ -6,13 +6,12 @@
     x:Class="shopping_app.MainPage"
     Title="Products">
 
-    <!-- Keep the count and buttons fixed while the middle row scrolls. -->
+    <!-- The middle row scrolls; the controls remain fixed. -->
     <Grid
         Padding="16"
         RowDefinitions="Auto,*,Auto"
         RowSpacing="12">
 
-        <!-- Display the product count with the sort button on the right. -->
         <Grid
             Grid.Row="0"
             ColumnDefinitions="*,Auto"
@@ -24,7 +23,8 @@
                 FontSize="16"
                 VerticalOptions="Center" />
 
-            <!-- Toggle between alphabetical and reverse alphabetical order. -->
+            <!-- Preserve the current sort direction when returning
+                 from the product form. -->
             <Button
                 x:Name="SortProductsButton"
                 Grid.Column="1"
@@ -36,17 +36,14 @@
                 CornerRadius="28"
                 Clicked="OnSortProductsClicked"
                 SemanticProperties.Description="Sorted A to Z. Tap to sort Z to A." />
-
         </Grid>
 
-        <!-- Display product names in a vertically scrollable list. -->
         <CollectionView
             x:Name="ProductsView"
             Grid.Row="1"
             SelectionMode="None"
             ItemsLayout="VerticalList">
 
-            <!-- Display a message when the list has no items. -->
             <CollectionView.EmptyView>
                 <Label
                     Text="No products to display."
@@ -54,30 +51,37 @@
                     HorizontalTextAlignment="Center" />
             </CollectionView.EmptyView>
 
-            <!-- Use the same layout for each product. -->
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:Product">
-                    <VerticalStackLayout Padding="0,12" Spacing="6">
+
+                    <!-- Track row creation and recycling so the highlight
+                         stays with the correct product. -->
+                    <Grid
+                        Padding="8,12"
+                        RowDefinitions="Auto,Auto"
+                        RowSpacing="14"
+                        BackgroundColor="Transparent"
+                        Loaded="OnProductRowLoaded"
+                        Unloaded="OnProductRowUnloaded"
+                        BindingContextChanged="OnProductRowBindingContextChanged">
 
                         <Label
                             Text="{Binding Name}"
                             FontSize="20"
                             FontAttributes="Bold" />
 
-                        <!-- Separate entries with a theme-aware line. -->
                         <BoxView
-                            Margin="0,8,0,0"
+                            Grid.Row="1"
                             HeightRequest="1"
                             Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
+                    </Grid>
 
-                    </VerticalStackLayout>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
 
         </CollectionView>
 
-        <!-- Open the product form.
-             This button stays below the list while products scroll. -->
+        <!-- Open the Add Product form. -->
         <Button
             x:Name="AddProductButton"
             Grid.Row="2"
@@ -92,5 +96,4 @@
             SemanticProperties.Description="Add a product" />
 
     </Grid>
-
 </ContentPage>
