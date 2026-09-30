@@ -6,6 +6,7 @@ namespace shopping_app.Data
 {
 	/// <summary>
 	/// Initializes the local database and provides methods for stored data.
+	/// Product names are compared without regard to capitalization.
 	/// </summary>
 	public sealed class AppDatabase
 	{
@@ -33,8 +34,7 @@ namespace shopping_app.Data
 					return connection;
 				}
 
-				// Create preserves existing data.
-				// Store DateTime values as .NET ticks.
+				// Preserve existing data and store DateTime values as ticks.
 				var newConnection = new SQLiteAsyncConnection(
 					DatabasePath,
 					SQLiteOpenFlags.ReadWrite |
@@ -44,19 +44,18 @@ namespace shopping_app.Data
 
 				try
 				{
-					// Foreign-key enforcement must be enabled per connection.
+					// Foreign-key enforcement is enabled per connection.
 					await newConnection.ExecuteAsync(
 						"PRAGMA foreign_keys = ON;").ConfigureAwait(false);
 
-					// Create parent tables before their linking table.
+					// Create parent tables before the linking table.
 					await newConnection.CreateTableAsync<Product>()
 						.ConfigureAwait(false);
 
 					await newConnection.CreateTableAsync<ShoppingList>()
 						.ConfigureAwait(false);
 
-					// Explicit SQL defines the composite key and foreign keys.
-					// Existing tables and records are preserved.
+					// Preserve existing tables and records.
 					await newConnection.ExecuteAsync(
 						"""
                         CREATE TABLE IF NOT EXISTS "ShoppingListProduct"
@@ -80,8 +79,7 @@ namespace shopping_app.Data
                         );
                         """).ConfigureAwait(false);
 
-					// The composite key indexes ShoppingListID first.
-					// This index supports lookups by ProductID.
+					// Support lookups by ProductID.
 					await newConnection.ExecuteAsync(
 						"""
                         CREATE INDEX IF NOT EXISTS
@@ -106,32 +104,77 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
-		/// Check whether another product already uses the supplied name.
-		/// Excluding the current ID allows keeping its name during editing.
-		/// Comparison matches the existing case-sensitive unique constraint.
+		/// Compare names using the same rule everywhere.
+		/// Ignore capitalization and surrounding whitespace.
+		/// Exclude the current product when checking an edit.
+		/// </summary>
+		private static bool ContainsDuplicateName(
+			IEnumerable<Product> products,
+			string name,
+			int? excludingProductId)
+		{
+			string trimmedName = name.Trim();
+
+			return products.Any(product =>
+				product.ID != excludingProductId &&
+				string.Equals(
+					product.Name.Trim(),
+					trimmedName,
+					StringComparison.OrdinalIgnoreCase));
+		}
+
+		/// <summary>
+		/// Provide the form's duplicate-name check.
+		/// Keeping the current product's name or changing only its
+		/// capitalization is allowed.
 		/// </summary>
 		public async Task<bool> ProductNameExistsAsync(
 			string name,
 			int? excludingProductId = null)
 		{
 			var database = await GetConnectionAsync().ConfigureAwait(false);
-			string trimmedName = name.Trim();
 
-			// Generated IDs start at 1, so 0 excludes nothing in Add mode.
-			int excludedId = excludingProductId ?? 0;
+			// Read only the fields required for comparison.
+			// Compare in C# so the rule is consistent across platforms.
+			var products = await database.QueryAsync<Product>(
+				"""
+                SELECT "ID", "Name"
+                FROM "Product";
+                """).ConfigureAwait(false);
 
-			int count = await database.Table<Product>()
-				.Where(product =>
-					product.Name == trimmedName &&
-					product.ID != excludedId)
-				.CountAsync()
-				.ConfigureAwait(false);
-
-			return count > 0;
+			return ContainsDuplicateName(
+				products,
+				name,
+				excludingProductId);
 		}
 
 		/// <summary>
-		/// Save a new product and return it with its generated ID.
+		/// Enforce the same name rule inside a write transaction.
+		/// This prevents callers from bypassing the form's validation.
+		/// </summary>
+		private static void EnsureUniqueProductName(
+			SQLiteConnection database,
+			string name,
+			int? excludingProductId = null)
+		{
+			var products = database.Query<Product>(
+				"""
+                SELECT "ID", "Name"
+                FROM "Product";
+                """);
+
+			if (ContainsDuplicateName(products, name, excludingProductId))
+			{
+				// The existing form already handles this result by showing
+				// its duplicate-name message beside the name field.
+				throw SQLiteException.New(
+					SQLite3.Result.Constraint,
+					"A product with this name already exists.");
+			}
+		}
+
+		/// <summary>
+		/// Insert a product after validating its required and unique name.
 		/// CreatedOn is UTC; ModifiedOn starts as null.
 		/// </summary>
 		public async Task<Product> AddProductAsync(
@@ -154,15 +197,21 @@ namespace shopping_app.Data
 				ModifiedOn = null
 			};
 
-			// The unique constraint also protects against duplicate names
-			// introduced between the form's duplicate check and insertion.
-			await database.InsertAsync(product).ConfigureAwait(false);
+			// Check and insert together, rather than relying only on the
+			// earlier form check or the case-sensitive database index.
+			await database.RunInTransactionAsync(transaction =>
+			{
+				EnsureUniqueProductName(transaction, product.Name);
+
+				// SQLite assigns the ID and updates product.ID.
+				transaction.Insert(product);
+			}).ConfigureAwait(false);
 
 			return product;
 		}
 
 		/// <summary>
-		/// Update an existing product's name and description.
+		/// Update the name and description of an existing product.
 		/// Preserve its ID, CreatedOn, ImagePath, and shopping-list links.
 		/// </summary>
 		public async Task UpdateProductAsync(
@@ -177,7 +226,6 @@ namespace shopping_app.Data
 					"Product ID must be greater than zero.");
 			}
 
-			// Validate here as well so callers cannot bypass the UI rule.
 			if (string.IsNullOrWhiteSpace(name))
 			{
 				throw new ArgumentException(
@@ -185,29 +233,40 @@ namespace shopping_app.Data
 			}
 
 			var database = await GetConnectionAsync().ConfigureAwait(false);
+			string trimmedName = name.Trim();
 
-			// Update only the editable columns and modification timestamp.
-			// Parameters keep product text separate from the SQL statement.
-			// Ticks match this database's DateTime storage format.
-			int rowsUpdated = await database.ExecuteAsync(
-				"""
-                UPDATE "Product"
-                SET "Name" = ?,
-                    "Description" = ?,
-                    "ModifiedOn" = ?
-                WHERE "ID" = ?;
-                """,
-				name.Trim(),
-				description,
-				DateTime.UtcNow.Ticks,
-				productId).ConfigureAwait(false);
-
-			// Never silently insert a replacement for a missing record.
-			if (rowsUpdated == 0)
+			// Check and update in one transaction.
+			await database.RunInTransactionAsync(transaction =>
 			{
-				throw new KeyNotFoundException(
-					"This product no longer exists.");
-			}
+				// Excluding this ID means a product does not conflict
+				// with itself when its name is unchanged.
+				EnsureUniqueProductName(
+					transaction,
+					trimmedName,
+					productId);
+
+				// Change only the editable fields and modification time.
+				// Parameters keep user-entered text separate from SQL.
+				int rowsUpdated = transaction.Execute(
+					"""
+                    UPDATE "Product"
+                    SET "Name" = ?,
+                        "Description" = ?,
+                        "ModifiedOn" = ?
+                    WHERE "ID" = ?;
+                    """,
+					trimmedName,
+					description,
+					DateTime.UtcNow.Ticks,
+					productId);
+
+				// Do not silently insert a replacement for a missing record.
+				if (rowsUpdated == 0)
+				{
+					throw new KeyNotFoundException(
+						"This product no longer exists.");
+				}
+			}).ConfigureAwait(false);
 		}
 
 		/// <summary>
@@ -271,7 +330,7 @@ namespace shopping_app.Data
 
 			entry.CreatedOn = DateTime.UtcNow;
 
-			// SQLite enforces both parent references and the composite key.
+			// SQLite enforces parent references and the composite key.
 			await database.InsertAsync(entry).ConfigureAwait(false);
 
 			return entry;
