@@ -12,6 +12,7 @@
         RowDefinitions="Auto,*,Auto"
         RowSpacing="12">
 
+        <!-- Display the product count and current sort direction. -->
         <Grid
             Grid.Row="0"
             ColumnDefinitions="*,Auto"
@@ -23,8 +24,6 @@
                 FontSize="16"
                 VerticalOptions="Center" />
 
-            <!-- Preserve the current sort direction when returning
-                 from the product form. -->
             <Button
                 x:Name="SortProductsButton"
                 Grid.Column="1"
@@ -38,6 +37,7 @@
                 SemanticProperties.Description="Sorted A to Z. Tap to sort Z to A." />
         </Grid>
 
+        <!-- Product selection is handled by the row's tap gesture. -->
         <CollectionView
             x:Name="ProductsView"
             Grid.Row="1"
@@ -54,7 +54,7 @@
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:Product">
 
-                    <!-- Track row creation and recycling so the highlight
+                    <!-- Track row creation and recycling so highlighting
                          stays with the correct product. -->
                     <Grid
                         Padding="8,12"
@@ -65,11 +65,21 @@
                         Unloaded="OnProductRowUnloaded"
                         BindingContextChanged="OnProductRowBindingContextChanged">
 
+                        <!-- Pass this row's product to the tap handler. -->
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer
+                                NumberOfTapsRequired="1"
+                                Tapped="OnProductTapped"
+                                CommandParameter="{Binding .}" />
+                        </Grid.GestureRecognizers>
+
                         <Label
                             Text="{Binding Name}"
                             FontSize="20"
-                            FontAttributes="Bold" />
+                            FontAttributes="Bold"
+                            SemanticProperties.Hint="Tap to edit product" />
 
+                        <!-- Separate product rows in either theme. -->
                         <BoxView
                             Grid.Row="1"
                             HeightRequest="1"
@@ -81,7 +91,7 @@
 
         </CollectionView>
 
-        <!-- Open the Add Product form. -->
+        <!-- Open the same detail page with an empty form for Add mode. -->
         <Button
             x:Name="AddProductButton"
             Grid.Row="2"
@@ -96,4 +106,5 @@
             SemanticProperties.Description="Add a product" />
 
     </Grid>
+
 </ContentPage>

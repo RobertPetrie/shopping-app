@@ -5,7 +5,7 @@ using shopping_app.Models;
 namespace shopping_app
 {
 	/// <summary>
-	/// Displays products and receives the saved product ID from the form.
+	/// Displays products, opens their detail form, and highlights saved items.
 	/// </summary>
 	public partial class MainPage : ContentPage, IQueryAttributable
 	{
@@ -16,8 +16,7 @@ namespace shopping_app
 		private bool isPageActive;
 		private bool needsRefresh = true;
 
-		// This field belongs to the existing page, so navigation to the
-		// form and back does not reset the user's chosen order.
+		// Preserve the chosen order while navigating to the form and back.
 		private bool sortAscending = true;
 
 		private List<Product> products = new();
@@ -26,20 +25,20 @@ namespace shopping_app
 		private int? highlightProductId;
 		private bool scrollRequested;
 
-		// CollectionView recycles its row controls.
-		// Track loaded rows rather than assuming every product has a view.
+		// CollectionView recycles row controls, so track loaded rows
+		// rather than assuming every product has a view.
 		private readonly HashSet<Grid> loadedRows = new();
 
 		public MainPage()
 		{
 			InitializeComponent();
 
-			// Initial loading waits until the page has platform services.
+			// Wait until platform services are available before loading.
 			Loaded += OnPageLoaded;
 		}
 
 		/// <summary>
-		/// Receive the ID passed back after a successful save.
+		/// Receive the ID returned after a successful save.
 		/// </summary>
 		public void ApplyQueryAttributes(IDictionary<string, object> query)
 		{
@@ -52,7 +51,7 @@ namespace shopping_app
 			}
 		}
 
-		// Navigation back may not raise Loaded again, so check here too.
+		// Returning to this page may not raise Loaded again.
 		protected override void OnNavigatedTo(NavigatedToEventArgs args)
 		{
 			base.OnNavigatedTo(args);
@@ -76,7 +75,7 @@ namespace shopping_app
 
 		/// <summary>
 		/// Schedule loading after navigation and layout events settle.
-		/// The guard in RefreshProductsAsync prevents duplicate queries.
+		/// RefreshProductsAsync guards against duplicate queries.
 		/// </summary>
 		private void QueueRefresh()
 		{
@@ -108,8 +107,8 @@ namespace shopping_app
 
 				StopHighlights();
 
-				// Set the highlight target before replacing ItemsSource,
-				// because replacement can immediately create new rows.
+				// Set the target before replacing ItemsSource because
+				// replacement can immediately create new row controls.
 				highlightProductId = savedProductId;
 				scrollRequested = false;
 
@@ -123,8 +122,8 @@ namespace shopping_app
 
 				if (savedProduct is not null)
 				{
-					// Give CollectionView a UI turn to process its new
-					// items, then scroll to the item in the current order.
+					// Let CollectionView process its new items before
+					// scrolling to the saved product in the current order.
 					Dispatcher.Dispatch(() =>
 					{
 						if (!isPageActive)
@@ -139,15 +138,15 @@ namespace shopping_app
 							position: ScrollToPosition.Center,
 							animate: false);
 
-						// The row may already exist, or its Loaded event
-						// will call this once scrolling creates it.
+						// Highlight now if the row exists. Otherwise its
+						// Loaded event will try again after scrolling.
 						Dispatcher.Dispatch(TryHighlightSavedProduct);
 					});
 				}
 			}
 			catch (Exception ex)
 			{
-				// Leave refresh pending so revisiting the page can retry.
+				// Revisiting the page can retry a failed refresh.
 				needsRefresh = true;
 				StatusLabel.Text = "Could not load products.";
 
@@ -169,7 +168,7 @@ namespace shopping_app
 
 		/// <summary>
 		/// Sort the displayed records without changing the database.
-		/// This method deliberately does not scroll to the top.
+		/// Scrolling is handled separately by the calling action.
 		/// </summary>
 		private void ApplySort()
 		{
@@ -201,7 +200,7 @@ namespace shopping_app
 			ApplySort();
 
 			// An explicit sort change starts at the beginning.
-			// Returning from Save follows a separate scroll-to-product path.
+			// Returning from Save instead scrolls to the saved product.
 			if (products.Count > 0)
 			{
 				Dispatcher.Dispatch(() =>
@@ -212,6 +211,9 @@ namespace shopping_app
 			}
 		}
 
+		/// <summary>
+		/// Open an empty detail form for adding a product.
+		/// </summary>
 		private async void OnAddProductClicked(object? sender, EventArgs e)
 		{
 			if (isLoading || isOpeningForm)
@@ -243,6 +245,50 @@ namespace shopping_app
 			}
 		}
 
+		/// <summary>
+		/// Open the tapped product in Edit mode.
+		/// This step displays its details without updating the database.
+		/// </summary>
+		private async void OnProductTapped(object? sender, TappedEventArgs e)
+		{
+			// Ignore repeated taps and taps while the list is loading.
+			if (isLoading || isOpeningForm || e.Parameter is not Product product)
+			{
+				return;
+			}
+
+			isOpeningForm = true;
+			UpdateButtons();
+
+			try
+			{
+				// Single-use navigation data supplies the selected product.
+				// The detail page copies its values into the form controls.
+				await Shell.Current.GoToAsync(
+					nameof(shopping_app.Pages.ProductDetailPage),
+					new ShellNavigationQueryParameters
+					{
+						["ProductToEdit"] = product
+					});
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine(
+					$"Could not open product for editing: {ex}");
+
+				await DisplayAlertAsync(
+					"Edit Product",
+					"Could not open this product. Please try again.",
+					"OK");
+			}
+			finally
+			{
+				isOpeningForm = false;
+				UpdateButtons();
+			}
+		}
+
+		// Disable actions while loading or opening another page.
 		private void UpdateButtons()
 		{
 			AddProductButton.IsEnabled = !isLoading && !isOpeningForm;
@@ -251,7 +297,7 @@ namespace shopping_app
 				!isLoading && !isOpeningForm && products.Count > 0;
 		}
 
-		// Register rows as CollectionView brings them into the visual tree.
+		// Register rows when they enter the visual tree.
 		private void OnProductRowLoaded(object? sender, EventArgs e)
 		{
 			if (sender is Grid row)
@@ -271,7 +317,7 @@ namespace shopping_app
 			}
 		}
 
-		// A recycled row may now represent a completely different product.
+		// A recycled row may now represent a different product.
 		private void OnProductRowBindingContextChanged(
 			object? sender,
 			EventArgs e)
@@ -289,8 +335,8 @@ namespace shopping_app
 		}
 
 		/// <summary>
-		/// Briefly tint the saved product's row, then fade it to transparent.
-		/// Only run after scrolling has been requested and the row exists.
+		/// Briefly tint the saved product's row, then fade to transparent.
+		/// Wait until scrolling has been requested and the row exists.
 		/// </summary>
 		private void TryHighlightSavedProduct()
 		{
@@ -310,13 +356,13 @@ namespace shopping_app
 				return;
 			}
 
-			// Consume the request so later scrolling does not repeat it.
+			// Consume the request so later scrolling cannot repeat it.
 			highlightProductId = null;
 			ResetRow(row);
 
 			var animation = new Animation(progress =>
 			{
-				// Hold the tint briefly, then fade it out.
+				// Hold the tint briefly before fading it out.
 				double fade = Math.Clamp(
 					(progress - 0.35) / 0.65, 0, 1);
 
