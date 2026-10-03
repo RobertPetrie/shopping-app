@@ -11,10 +11,36 @@ permissions:
   contents: read
 
 jobs:
+
+  test:
+    name: Run unit tests
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v5
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI Windows workload
+        run: dotnet workload install maui-windows
+
+      - name: Run unit tests
+        run: >
+          dotnet test ShoppingApp.Tests/ShoppingApp.Tests.csproj
+          --configuration Release
+          --framework net10.0
+
+
   build-windows:
     name: Build Windows app
     runs-on: windows-latest
     timeout-minutes: 30
+    needs: test
 
     steps:
       - name: Check out source code

@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="shopping-app.csproj" />
+  <Project Path="shopping-app.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
+  <Project Path="ShoppingApp.Tests/ShoppingApp.Tests.csproj" Id="737514dd-f86d-450f-90f5-4c4db0ae667e" />
 </Solution>
