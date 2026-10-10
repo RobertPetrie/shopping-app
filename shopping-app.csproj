@@ -41,6 +41,7 @@
 
     <RootNamespace>shopping_app</RootNamespace>
     <UseMaui>true</UseMaui>
+    <MauiVersion>10.0.71</MauiVersion>
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -136,6 +137,11 @@
     <PackageReference
 			Include="Microsoft.Extensions.Logging.Debug"
 			Version="10.0.0" />
+
+    <!-- Material-style UI framework for the app theme and controls. -->
+    <PackageReference
+			Include="UraniumUI.Material"
+			Version="3.0.0" />
 
     <!-- SQLite storage for the database file kept on each device. -->
     <PackageReference

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using shopping_app.Data;
+using shopping_app.Logic;
 using shopping_app.Models;
 
 namespace shopping_app
@@ -96,6 +97,13 @@ namespace shopping_app
 
 			try
 			{
+				// Wait for development sample data before reading SQLite.
+				// This keeps the first load consistent on a fresh install.
+				if (Application.Current is App app)
+				{
+					await app.TestDataReady;
+				}
+
 				var services = Handler?.MauiContext?.Services
 					?? throw new InvalidOperationException(
 						"The page's app services are unavailable.");
@@ -112,15 +120,16 @@ namespace shopping_app
 				highlightProductId = savedProductId;
 				scrollRequested = false;
 
-				ApplySort();
-				StatusLabel.Text = $"{products.Count} products";
+				ApplyFilterAndSort();
 
 				var savedProduct = products.FirstOrDefault(
 					product => product.ID == savedProductId);
 
 				savedProductId = null;
 
-				if (savedProduct is not null)
+				if (savedProduct is not null
+					&& ProductsView.ItemsSource is IEnumerable<Product> displayedProducts
+					&& displayedProducts.Any(product => product.ID == savedProduct.ID))
 				{
 					// Let CollectionView process its new items before
 					// scrolling to the saved product in the current order.
@@ -167,41 +176,65 @@ namespace shopping_app
 		}
 
 		/// <summary>
-		/// Sort the displayed records without changing the database.
-		/// Scrolling is handled separately by the calling action.
+		/// Filter and sort the products for display without changing the
+		/// database. The actual rules live in ProductListFilter so they can
+		/// be unit tested without starting the MAUI user interface.
 		/// </summary>
-		private void ApplySort()
+		private int ApplyFilterAndSort()
 		{
-			var sortedProducts = sortAscending
-				? products.OrderBy(
-					product => product.Name,
-					StringComparer.CurrentCultureIgnoreCase)
-				: products.OrderByDescending(
-					product => product.Name,
-					StringComparer.CurrentCultureIgnoreCase);
+			string searchText = ProductSearchBar.Text ?? string.Empty;
 
-			ProductsView.ItemsSource = sortedProducts
-				.ThenBy(product => product.ID)
-				.ToList();
+			var displayedProducts = ProductListFilter.FilterAndSort(
+				products,
+				searchText,
+				sortAscending);
 
-			SortProductsButton.Text = sortAscending ? "A|Z" : "Z|A";
+			ProductsView.ItemsSource = displayedProducts;
+
+			// Tell the user how many products are visible while searching.
+			StatusLabel.Text = ProductListFilter.GetStatusText(
+				products.Count,
+				displayedProducts.Count,
+				searchText);
+
+			SortProductsButton.Text = sortAscending ? "A → Z" : "Z → A";
 
 			SemanticProperties.SetDescription(
 				SortProductsButton,
 				sortAscending
 					? "Sorted A to Z. Tap to sort Z to A."
 					: "Sorted Z to A. Tap to sort A to Z.");
+
+			return displayedProducts.Count;
+		}
+
+		private void OnProductSearchTextChanged(
+			object? sender,
+			TextChangedEventArgs e)
+		{
+			// Update the list immediately after each change in the search box.
+			StopHighlights();
+			int displayedCount = ApplyFilterAndSort();
+
+			if (displayedCount > 0)
+			{
+				Dispatcher.Dispatch(() =>
+					ProductsView.ScrollTo(
+						0,
+						position: ScrollToPosition.Start,
+						animate: false));
+			}
 		}
 
 		private void OnSortProductsClicked(object? sender, EventArgs e)
 		{
 			StopHighlights();
 			sortAscending = !sortAscending;
-			ApplySort();
+			int displayedCount = ApplyFilterAndSort();
 
-			// An explicit sort change starts at the beginning.
-			// Returning from Save instead scrolls to the saved product.
-			if (products.Count > 0)
+			// An explicit sort change starts at the beginning of the
+			// currently filtered list.
+			if (displayedCount > 0)
 			{
 				Dispatcher.Dispatch(() =>
 					ProductsView.ScrollTo(

@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:models="clr-namespace:shopping_app.Models"
+    x:Class="shopping_app.Pages.ShoppingListsPage"
+    Title="Shopping Lists">
+
+    <!-- Match the Products screen so both tabs feel like one app. -->
+    <Grid
+        Padding="24,20"
+        RowDefinitions="Auto,*,Auto"
+        RowSpacing="18">
+
+        <!-- Page title, live search box, and date sort action. -->
+        <Grid
+            Grid.Row="0"
+            ColumnDefinitions="Auto,*,Auto"
+            ColumnSpacing="16">
+
+            <VerticalStackLayout
+                Spacing="2"
+                VerticalOptions="Center">
+
+                <Label
+                    Text="Shopping Lists"
+                    FontSize="30"
+                    FontAttributes="Bold" />
+
+                <Label
+                    x:Name="StatusLabel"
+                    Text="Loading shopping lists..."
+                    FontSize="14"
+                    TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+            </VerticalStackLayout>
+
+            <!-- Filter immediately as the user types a date, amount, or status. -->
+            <SearchBar
+                x:Name="ShoppingListSearchBar"
+                AutomationId="ShoppingListSearchBar"
+                Grid.Column="1"
+                Placeholder="Search shopping lists"
+                IsSpellCheckEnabled="False"
+                IsTextPredictionEnabled="False"
+                VerticalOptions="Center"
+                TextChanged="OnSearchTextChanged"
+                SemanticProperties.Description="Search shopping lists" />
+
+            <Button
+                x:Name="SortShoppingListsButton"
+                Grid.Column="2"
+                StyleClass="FilledTonalButton"
+                Text="Newest"
+                FontSize="14"
+                Padding="18,10"
+                MinimumWidthRequest="100"
+                VerticalOptions="Center"
+                Clicked="OnSortClicked"
+                SemanticProperties.Description="Newest first. Tap to show oldest first." />
+        </Grid>
+
+        <CollectionView
+            x:Name="ShoppingListsView"
+            Grid.Row="1"
+            SelectionMode="None"
+            ItemsLayout="VerticalList">
+
+            <CollectionView.EmptyView>
+                <Border
+                    StyleClass="SurfaceContainer,Rounded"
+                    Padding="24"
+                    Margin="0,24,0,0">
+
+                    <VerticalStackLayout
+                        Spacing="6"
+                        HorizontalOptions="Center">
+
+                        <Label
+                            Text="No matching shopping lists"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            HorizontalTextAlignment="Center" />
+
+                        <Label
+                            Text="Try another search or add a new shopping list."
+                            FontSize="14"
+                            TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}"
+                            HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:ShoppingList">
+                    <Grid
+                        Padding="3"
+                        Margin="0,0,0,10">
+
+                        <Border
+                            StyleClass="SurfaceContainer,Rounded"
+                            Padding="18,16">
+
+                            <Border.Shadow>
+                                <Shadow
+                                    Opacity="0.12"
+                                    Radius="8"
+                                    Offset="0,3" />
+                            </Border.Shadow>
+
+                            <Grid
+                                ColumnDefinitions="*,Auto"
+                                ColumnSpacing="16">
+
+                                <VerticalStackLayout Spacing="4">
+                                    <Label
+                                        Text="{Binding DisplayDate}"
+                                        FontSize="18"
+                                        FontAttributes="Bold" />
+
+                                    <Label
+                                        Text="{Binding PickupStatus}"
+                                        FontSize="13"
+                                        TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+                                </VerticalStackLayout>
+
+                                <VerticalStackLayout
+                                    Grid.Column="1"
+                                    Spacing="2"
+                                    HorizontalOptions="End"
+                                    VerticalOptions="Center">
+
+                                    <Label
+                                        Text="{Binding DisplayTotalCost}"
+                                        FontSize="17"
+                                        FontAttributes="Bold"
+                                        HorizontalTextAlignment="End" />
+
+                                    <Label
+                                        Text="Total"
+                                        FontSize="12"
+                                        TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}"
+                                        HorizontalTextAlignment="End" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Match the circular add button used on the Products screen. -->
+        <Button
+            x:Name="AddShoppingListButton"
+            AutomationId="AddShoppingListButton"
+            Grid.Row="2"
+            StyleClass="FilledTonalButton"
+            Text="+"
+            FontSize="30"
+            Padding="0"
+            WidthRequest="56"
+            HeightRequest="56"
+            MinimumWidthRequest="56"
+            MinimumHeightRequest="56"
+            CornerRadius="28"
+            HorizontalOptions="Start"
+            Clicked="OnAddShoppingListClicked"
+            SemanticProperties.Description="Add a shopping list" />
+
+    </Grid>
+
+</ContentPage>

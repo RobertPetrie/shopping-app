@@ -2,6 +2,8 @@
 
 using shopping_app.Data;
 
+using UraniumUI;
+
 namespace shopping_app
 {
 	public static class MauiProgram
@@ -11,6 +13,8 @@ namespace shopping_app
 			var builder = MauiApp.CreateBuilder();
 			builder
 				.UseMauiApp<App>()
+				.UseUraniumUI()
+				.UseUraniumUIMaterial()
 				.ConfigureFonts(fonts =>
 				{
 					fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

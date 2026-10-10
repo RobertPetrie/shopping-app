@@ -120,5 +120,41 @@ namespace ShoppingApp.Tests
 			// Assert
 			Assert.False(shoppingList.PickedUp);
 		}
+
+		[Fact]
+		public void DisplayDate_WhenDateIsMissing_ShowsFriendlyMessage()
+		{
+			// A list without a shopping date should still show useful text.
+			var shoppingList = new ShoppingList();
+
+			Assert.Equal("No shopping date", shoppingList.DisplayDate);
+		}
+
+
+		[Fact]
+		public void DisplayTotalCost_WhenTotalIsMissing_ShowsFriendlyMessage()
+		{
+			// A pending list may not have a final total yet.
+			var shoppingList = new ShoppingList();
+
+			Assert.Equal("Total not entered", shoppingList.DisplayTotalCost);
+		}
+
+
+		[Theory]
+		[InlineData(false, "Pending")]
+		[InlineData(true, "Picked up")]
+		public void PickupStatus_ReflectsPickedUpState(
+			bool pickedUp,
+			string expectedStatus)
+		{
+			// The card text should match the stored picked-up flag.
+			var shoppingList = new ShoppingList
+			{
+				PickedUp = pickedUp
+			};
+
+			Assert.Equal(expectedStatus, shoppingList.PickupStatus);
+		}
 	}
 }
