@@ -3,4 +3,5 @@
     <Deploy Solution="Debug|*" />
   </Project>
   <Project Path="ShoppingApp.Tests/ShoppingApp.Tests.csproj" Id="737514dd-f86d-450f-90f5-4c4db0ae667e" />
+  <Project Path="ShoppingApp.UITests.Windows/ShoppingApp.UITests.Windows.csproj" Id="a0e55d43-1eaf-4626-8aae-f37438470140" />
 </Solution>

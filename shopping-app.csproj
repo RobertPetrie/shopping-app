@@ -8,9 +8,10 @@
 			xUnit test files as part of the application.
 		-->
     <DefaultItemExcludes>
-      $(DefaultItemExcludes);ShoppingApp.Tests\**
+      $(DefaultItemExcludes);
+      ShoppingApp.Tests\**;
+      ShoppingApp.UITests.Windows\**
     </DefaultItemExcludes>
-
     <!--
 			net10.0 exists so the xUnit project can reference this project.
 			The remaining targets are the actual MAUI application platforms.

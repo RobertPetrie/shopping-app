@@ -94,6 +94,7 @@
         <!-- Open the same detail page with an empty form for Add mode. -->
         <Button
             x:Name="AddProductButton"
+            AutomationId="AddProductButton"
             Grid.Row="2"
             Text="+"
             FontSize="32"
