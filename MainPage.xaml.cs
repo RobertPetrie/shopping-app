@@ -184,7 +184,7 @@ namespace shopping_app
 				.ThenBy(product => product.ID)
 				.ToList();
 
-			SortProductsButton.Text = sortAscending ? "A|Z" : "Z|A";
+			SortProductsButton.Text = sortAscending ? "A → Z" : "Z → A";
 
 			SemanticProperties.SetDescription(
 				SortProductsButton,

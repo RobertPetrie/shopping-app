@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
@@ -6,38 +6,48 @@
     x:Class="shopping_app.MainPage"
     Title="Products">
 
-    <!-- The middle row scrolls; the controls remain fixed. -->
+    <!-- Material-style product list with a prominent header and actions. -->
     <Grid
-        Padding="16"
+        Padding="24,20"
         RowDefinitions="Auto,*,Auto"
-        RowSpacing="12">
+        RowSpacing="18">
 
-        <!-- Display the product count and current sort direction. -->
+        <!-- Page title, product count, and sort action. -->
         <Grid
             Grid.Row="0"
             ColumnDefinitions="*,Auto"
-            ColumnSpacing="12">
+            ColumnSpacing="16">
 
-            <Label
-                x:Name="StatusLabel"
-                Text="Loading products..."
-                FontSize="16"
-                VerticalOptions="Center" />
+            <VerticalStackLayout
+                Spacing="2"
+                VerticalOptions="Center">
+
+                <Label
+                    Text="Products"
+                    FontSize="30"
+                    FontAttributes="Bold" />
+
+                <Label
+                    x:Name="StatusLabel"
+                    Text="Loading products..."
+                    FontSize="14"
+                    TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+            </VerticalStackLayout>
 
             <Button
                 x:Name="SortProductsButton"
                 Grid.Column="1"
-                Text="A|Z"
+                StyleClass="FilledTonalButton"
+                Text="A → Z"
                 FontSize="14"
-                Padding="0"
-                WidthRequest="56"
-                HeightRequest="56"
-                CornerRadius="28"
+                Padding="18,10"
+                MinimumWidthRequest="92"
+                VerticalOptions="Center"
                 Clicked="OnSortProductsClicked"
                 SemanticProperties.Description="Sorted A to Z. Tap to sort Z to A." />
         </Grid>
 
-        <!-- Product selection is handled by the row's tap gesture. -->
+        <!-- Product selection is handled by each card's tap gesture. -->
         <CollectionView
             x:Name="ProductsView"
             Grid.Row="1"
@@ -45,27 +55,43 @@
             ItemsLayout="VerticalList">
 
             <CollectionView.EmptyView>
-                <Label
-                    Text="No products to display."
-                    Margin="0,24"
-                    HorizontalTextAlignment="Center" />
+                <Border
+                    StyleClass="SurfaceContainer,Rounded"
+                    Padding="24"
+                    Margin="0,24,0,0">
+
+                    <VerticalStackLayout
+                        Spacing="6"
+                        HorizontalOptions="Center">
+
+                        <Label
+                            Text="No products yet"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            HorizontalTextAlignment="Center" />
+
+                        <Label
+                            Text="Add your first product below."
+                            FontSize="14"
+                            TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}"
+                            HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
             </CollectionView.EmptyView>
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:Product">
 
-                    <!-- Track row creation and recycling so highlighting
-                         stays with the correct product. -->
+                    <!-- Keep the outer Grid so the existing saved-row highlight
+                         logic can continue tracking recycled CollectionView rows. -->
                     <Grid
-                        Padding="8,12"
-                        RowDefinitions="Auto,Auto"
-                        RowSpacing="14"
+                        Padding="3"
+                        Margin="0,0,0,10"
                         BackgroundColor="Transparent"
                         Loaded="OnProductRowLoaded"
                         Unloaded="OnProductRowUnloaded"
                         BindingContextChanged="OnProductRowBindingContextChanged">
 
-                        <!-- Pass this row's product to the tap handler. -->
                         <Grid.GestureRecognizers>
                             <TapGestureRecognizer
                                 NumberOfTapsRequired="1"
@@ -73,17 +99,36 @@
                                 CommandParameter="{Binding .}" />
                         </Grid.GestureRecognizers>
 
-                        <Label
-                            Text="{Binding Name}"
-                            FontSize="20"
-                            FontAttributes="Bold"
-                            SemanticProperties.Hint="Tap to edit product" />
+                        <Border
+                            StyleClass="SurfaceContainer,Rounded"
+                            Padding="18,16">
 
-                        <!-- Separate product rows in either theme. -->
-                        <BoxView
-                            Grid.Row="1"
-                            HeightRequest="1"
-                            Color="{AppThemeBinding Light=#DDDDDD, Dark=#444444}" />
+                            <Border.Shadow>
+                                <Shadow
+                                    Opacity="0.12"
+                                    Radius="8"
+                                    Offset="0,3" />
+                            </Border.Shadow>
+
+                            <Grid
+                                ColumnDefinitions="*,Auto"
+                                ColumnSpacing="12">
+
+                                <Label
+                                    Text="{Binding Name}"
+                                    FontSize="18"
+                                    FontAttributes="Bold"
+                                    VerticalOptions="Center"
+                                    SemanticProperties.Hint="Tap to edit product" />
+
+                                <Label
+                                    Grid.Column="1"
+                                    Text="›"
+                                    FontSize="28"
+                                    VerticalOptions="Center"
+                                    TextColor="{AppThemeBinding Light=#666666, Dark=#C7C7C7}" />
+                            </Grid>
+                        </Border>
                     </Grid>
 
                 </DataTemplate>
@@ -91,18 +136,18 @@
 
         </CollectionView>
 
-        <!-- Open the same detail page with an empty form for Add mode. -->
+        <!-- Primary Material action for creating a product. -->
         <Button
             x:Name="AddProductButton"
             AutomationId="AddProductButton"
             Grid.Row="2"
-            Text="+"
-            FontSize="32"
-            Padding="0"
-            WidthRequest="56"
-            HeightRequest="56"
-            CornerRadius="28"
-            HorizontalOptions="Start"
+            StyleClass="FilledButton"
+            Text="+  Add product"
+            FontSize="16"
+            FontAttributes="Bold"
+            Padding="22,12"
+            MinimumHeightRequest="52"
+            HorizontalOptions="End"
             Clicked="OnAddProductClicked"
             SemanticProperties.Description="Add a product" />
 
