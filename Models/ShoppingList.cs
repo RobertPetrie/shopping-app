@@ -79,5 +79,20 @@ namespace shopping_app.Models
 		// This is non-nullable and defaults to false for new objects.
 		[NotNull]
 		public bool PickedUp { get; set; } = false;
+
+		// These display properties are for the screen only.
+		// Ignore means SQLite does not create extra database columns for them.
+		[Ignore]
+		public string DisplayDate => ShoppingDate?.ToString(
+			"MMMM d, yyyy",
+			CultureInfo.CurrentCulture) ?? "No shopping date";
+
+		[Ignore]
+		public string DisplayTotalCost => TotalCost.HasValue
+			? TotalCost.Value.ToString("C", CultureInfo.CurrentCulture)
+			: "Total not entered";
+
+		[Ignore]
+		public string PickupStatus => PickedUp ? "Picked up" : "Pending";
 	}
 }

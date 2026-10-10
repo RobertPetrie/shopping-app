@@ -4,28 +4,20 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:shopping_app"
+    xmlns:pages="clr-namespace:shopping_app.Pages"
     Title="Shopping App"
     FlyoutBehavior="Disabled"
     Shell.NavBarIsVisible="False">
 
     <TabBar>
-        <!-- Selected automatically at startup -->
+        <!-- Shopping Lists is the first screen shown when the app opens. -->
         <Tab
             Icon="tab_list.png">
 
             <ShellContent
-                Title="List"
-                Route="Lists">
-
-                <ShellContent.ContentTemplate>
-                    <DataTemplate>
-                        <ContentPage Title="List">
-                            <Grid />
-                        </ContentPage>
-                    </DataTemplate>
-                </ShellContent.ContentTemplate>
-
-            </ShellContent>
+                Title="Shopping Lists"
+                Route="ShoppingLists"
+                ContentTemplate="{DataTemplate pages:ShoppingListsPage}" />
         </Tab>
 
         <Tab
