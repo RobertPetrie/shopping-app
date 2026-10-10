@@ -31,6 +31,8 @@
 
                     <Entry
                         x:Name="ProductNameEntry"
+                        IsSpellCheckEnabled="True"
+                        IsTextPredictionEnabled="True"
                         Placeholder="For example, Green apples"
                         ReturnType="Next"
                         Completed="OnNameCompleted"
@@ -55,6 +57,8 @@
 
                 <Editor
                     x:Name="ProductDescriptionEditor"
+                    IsSpellCheckEnabled="True"
+                    IsTextPredictionEnabled="True"
                     Placeholder="Add any useful details about this product"
                     HeightRequest="140"
                     SemanticProperties.Description="Product description, optional" />
