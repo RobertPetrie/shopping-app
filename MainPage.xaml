@@ -141,7 +141,7 @@
             x:Name="AddProductButton"
             AutomationId="AddProductButton"
             Grid.Row="2"
-            StyleClass="FilledButton"
+            StyleClass="FilledTonalButton"
             Text="+"
             FontSize="30"
             Padding="0"
