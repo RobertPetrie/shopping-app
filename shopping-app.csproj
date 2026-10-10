@@ -41,6 +41,7 @@
 
     <RootNamespace>shopping_app</RootNamespace>
     <UseMaui>true</UseMaui>
+    <MauiVersion>10.0.71</MauiVersion>
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
