@@ -11,8 +11,26 @@ namespace shopping_app.Data
 	public sealed class AppDatabase
 	{
 		// Keep the filename stable so app updates reuse existing data.
-		public string DatabasePath { get; } =
-			Path.Combine(FileSystem.AppDataDirectory, "shopping.db3");
+		public string DatabasePath { get; }
+
+		// The app uses its private data folder during normal use.
+		public AppDatabase()
+			: this(Path.Combine(FileSystem.AppDataDirectory, "shopping.db3"))
+		{
+		}
+
+		// Tests can supply a temporary path so they never touch the real app database.
+		public AppDatabase(string databasePath)
+		{
+			if (string.IsNullOrWhiteSpace(databasePath))
+			{
+				throw new ArgumentException(
+					"A database path is required.",
+					nameof(databasePath));
+			}
+
+			DatabasePath = databasePath;
+		}
 
 		// Prevent simultaneous callers from initializing the database twice.
 		private readonly SemaphoreSlim initializationGate = new(1, 1);
