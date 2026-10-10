@@ -12,10 +12,10 @@
         RowDefinitions="Auto,*,Auto"
         RowSpacing="18">
 
-        <!-- Page title, product count, and sort action. -->
+        <!-- Page title, live search box, and sort action. -->
         <Grid
             Grid.Row="0"
-            ColumnDefinitions="*,Auto"
+            ColumnDefinitions="Auto,*,Auto"
             ColumnSpacing="16">
 
             <VerticalStackLayout
@@ -34,9 +34,20 @@
                     TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
             </VerticalStackLayout>
 
+            <!-- Filter the visible list immediately as the user types. -->
+            <SearchBar
+                x:Name="ProductSearchBar"
+                Grid.Column="1"
+                Placeholder="Search products"
+                IsSpellCheckEnabled="False"
+                IsTextPredictionEnabled="False"
+                VerticalOptions="Center"
+                TextChanged="OnProductSearchTextChanged"
+                SemanticProperties.Description="Search products" />
+
             <Button
                 x:Name="SortProductsButton"
-                Grid.Column="1"
+                Grid.Column="2"
                 StyleClass="FilledTonalButton"
                 Text="A → Z"
                 FontSize="14"
@@ -65,13 +76,13 @@
                         HorizontalOptions="Center">
 
                         <Label
-                            Text="No products yet"
+                            Text="No matching products"
                             FontSize="18"
                             FontAttributes="Bold"
                             HorizontalTextAlignment="Center" />
 
                         <Label
-                            Text="Add your first product below."
+                            Text="Try another search or add a new product."
                             FontSize="14"
                             TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}"
                             HorizontalTextAlignment="Center" />

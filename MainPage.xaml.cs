@@ -112,15 +112,16 @@ namespace shopping_app
 				highlightProductId = savedProductId;
 				scrollRequested = false;
 
-				ApplySort();
-				StatusLabel.Text = $"{products.Count} products";
+				ApplyFilterAndSort();
 
 				var savedProduct = products.FirstOrDefault(
 					product => product.ID == savedProductId);
 
 				savedProductId = null;
 
-				if (savedProduct is not null)
+				if (savedProduct is not null
+					&& ProductsView.ItemsSource is IEnumerable<Product> displayedProducts
+					&& displayedProducts.Any(product => product.ID == savedProduct.ID))
 				{
 					// Let CollectionView process its new items before
 					// scrolling to the saved product in the current order.
@@ -167,22 +168,44 @@ namespace shopping_app
 		}
 
 		/// <summary>
-		/// Sort the displayed records without changing the database.
-		/// Scrolling is handled separately by the calling action.
+		/// Filter products by the text in the search box, then apply the
+		/// selected sort order. This only changes what is shown on screen;
+		/// it does not change anything in the database.
 		/// </summary>
-		private void ApplySort()
+		private int ApplyFilterAndSort()
 		{
+			string searchText = ProductSearchBar.Text?.Trim() ?? string.Empty;
+
+			// Start with every product, then narrow the list when the user
+			// has typed something into the search box.
+			IEnumerable<Product> visibleProducts = products;
+
+			if (!string.IsNullOrWhiteSpace(searchText))
+			{
+				visibleProducts = visibleProducts.Where(product =>
+					product.Name.Contains(
+						searchText,
+						StringComparison.CurrentCultureIgnoreCase));
+			}
+
 			var sortedProducts = sortAscending
-				? products.OrderBy(
+				? visibleProducts.OrderBy(
 					product => product.Name,
 					StringComparer.CurrentCultureIgnoreCase)
-				: products.OrderByDescending(
+				: visibleProducts.OrderByDescending(
 					product => product.Name,
 					StringComparer.CurrentCultureIgnoreCase);
 
-			ProductsView.ItemsSource = sortedProducts
+			var displayedProducts = sortedProducts
 				.ThenBy(product => product.ID)
 				.ToList();
+
+			ProductsView.ItemsSource = displayedProducts;
+
+			// Show how many products match when a search is active.
+			StatusLabel.Text = string.IsNullOrWhiteSpace(searchText)
+				? $"{products.Count} products"
+				: $"{displayedProducts.Count} of {products.Count} products";
 
 			SortProductsButton.Text = sortAscending ? "A → Z" : "Z → A";
 
@@ -191,17 +214,37 @@ namespace shopping_app
 				sortAscending
 					? "Sorted A to Z. Tap to sort Z to A."
 					: "Sorted Z to A. Tap to sort A to Z.");
+
+			return displayedProducts.Count;
+		}
+
+		private void OnProductSearchTextChanged(
+			object? sender,
+			TextChangedEventArgs e)
+		{
+			// Update the list immediately after each change in the search box.
+			StopHighlights();
+			int displayedCount = ApplyFilterAndSort();
+
+			if (displayedCount > 0)
+			{
+				Dispatcher.Dispatch(() =>
+					ProductsView.ScrollTo(
+						0,
+						position: ScrollToPosition.Start,
+						animate: false));
+			}
 		}
 
 		private void OnSortProductsClicked(object? sender, EventArgs e)
 		{
 			StopHighlights();
 			sortAscending = !sortAscending;
-			ApplySort();
+			int displayedCount = ApplyFilterAndSort();
 
-			// An explicit sort change starts at the beginning.
-			// Returning from Save instead scrolls to the saved product.
-			if (products.Count > 0)
+			// An explicit sort change starts at the beginning of the
+			// currently filtered list.
+			if (displayedCount > 0)
 			{
 				Dispatcher.Dispatch(() =>
 					ProductsView.ScrollTo(
