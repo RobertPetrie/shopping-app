@@ -65,6 +65,13 @@ namespace shopping_app.Pages
 
 			try
 			{
+				// The app seeds development data when the window starts.
+				// Wait here so the first screen does not query SQLite too early.
+				if (Application.Current is App app)
+				{
+					await app.TestDataReady;
+				}
+
 				var services = Handler?.MauiContext?.Services
 					?? throw new InvalidOperationException(
 						"The page's app services are unavailable.");

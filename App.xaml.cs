@@ -10,6 +10,13 @@ namespace shopping_app
 
 		private readonly AppDatabase database;
 
+		// Pages wait for this task before loading data so the sample records
+		// are guaranteed to be in SQLite before the first query runs.
+		private readonly TaskCompletionSource testDataReady =
+			new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+		public Task TestDataReady => testDataReady.Task;
+
 		public App(AppDatabase database)
 		{
 			InitializeComponent();
@@ -24,6 +31,11 @@ namespace shopping_app
 			if (CreateTestData)
 			{
 				window.Created += OnWindowCreated;
+			}
+			else
+			{
+				// Nothing needs to be seeded, so pages may load immediately.
+				testDataReady.TrySetResult();
 			}
 
 			return window;
@@ -56,6 +68,11 @@ namespace shopping_app
 							+ "See the debug output for details.",
 						"OK");
 				}
+			}
+			finally
+			{
+				// Always release waiting pages, even if some sample data failed.
+				testDataReady.TrySetResult();
 			}
 		}
 	}

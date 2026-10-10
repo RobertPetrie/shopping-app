@@ -97,6 +97,13 @@ namespace shopping_app
 
 			try
 			{
+				// Wait for development sample data before reading SQLite.
+				// This keeps the first load consistent on a fresh install.
+				if (Application.Current is App app)
+				{
+					await app.TestDataReady;
+				}
+
 				var services = Handler?.MauiContext?.Services
 					?? throw new InvalidOperationException(
 						"The page's app services are unavailable.");
