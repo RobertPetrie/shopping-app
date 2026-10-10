@@ -55,11 +55,12 @@ namespace shopping_app.Logic
 					CultureInfo.CurrentCulture)
 				: "Total not entered";
 
-			string statusText = shoppingList.PickedUp
-				? "Picked up completed"
-				: "Pending not picked up";
+			// Search the same status text that is actually shown on the card.
+			// This keeps "picked" from also matching a Pending list through
+			// hidden wording such as "not picked up".
+			string statusText = shoppingList.PickupStatus;
 
-			// Match any text the user can reasonably see or think of.
+			// Match the date, total, or visible status text.
 			return Contains(dateText, searchText)
 				|| Contains(isoDate, searchText)
 				|| Contains(totalText, searchText)
