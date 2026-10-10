@@ -37,6 +37,7 @@
             <!-- Filter the visible list immediately as the user types. -->
             <SearchBar
                 x:Name="ProductSearchBar"
+                AutomationId="ProductSearchBar"
                 Grid.Column="1"
                 Placeholder="Search products"
                 IsSpellCheckEnabled="False"

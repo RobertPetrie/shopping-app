@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using shopping_app.Data;
+using shopping_app.Logic;
 using shopping_app.Models;
 
 namespace shopping_app
@@ -168,44 +169,26 @@ namespace shopping_app
 		}
 
 		/// <summary>
-		/// Filter products by the text in the search box, then apply the
-		/// selected sort order. This only changes what is shown on screen;
-		/// it does not change anything in the database.
+		/// Filter and sort the products for display without changing the
+		/// database. The actual rules live in ProductListFilter so they can
+		/// be unit tested without starting the MAUI user interface.
 		/// </summary>
 		private int ApplyFilterAndSort()
 		{
-			string searchText = ProductSearchBar.Text?.Trim() ?? string.Empty;
+			string searchText = ProductSearchBar.Text ?? string.Empty;
 
-			// Start with every product, then narrow the list when the user
-			// has typed something into the search box.
-			IEnumerable<Product> visibleProducts = products;
-
-			if (!string.IsNullOrWhiteSpace(searchText))
-			{
-				visibleProducts = visibleProducts.Where(product =>
-					product.Name.Contains(
-						searchText,
-						StringComparison.CurrentCultureIgnoreCase));
-			}
-
-			var sortedProducts = sortAscending
-				? visibleProducts.OrderBy(
-					product => product.Name,
-					StringComparer.CurrentCultureIgnoreCase)
-				: visibleProducts.OrderByDescending(
-					product => product.Name,
-					StringComparer.CurrentCultureIgnoreCase);
-
-			var displayedProducts = sortedProducts
-				.ThenBy(product => product.ID)
-				.ToList();
+			var displayedProducts = ProductListFilter.FilterAndSort(
+				products,
+				searchText,
+				sortAscending);
 
 			ProductsView.ItemsSource = displayedProducts;
 
-			// Show how many products match when a search is active.
-			StatusLabel.Text = string.IsNullOrWhiteSpace(searchText)
-				? $"{products.Count} products"
-				: $"{displayedProducts.Count} of {products.Count} products";
+			// Tell the user how many products are visible while searching.
+			StatusLabel.Text = ProductListFilter.GetStatusText(
+				products.Count,
+				displayedProducts.Count,
+				searchText);
 
 			SortProductsButton.Text = sortAscending ? "A → Z" : "Z → A";
 
