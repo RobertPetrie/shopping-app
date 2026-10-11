@@ -35,6 +35,13 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Basic Grocery and Other categories are stored as non-taxable.
 - [ ] Snack Food, Candy / Confectionery, Carbonated Beverage, Household / Non-Food, and Prepared Food are stored as taxable.
 - [ ] An existing database upgrades without losing Product or ProductCategory records.
+- [ ] Product form shows a Storage Location dropdown.
+- [ ] Storage Location dropdown shows the nine built-in locations alphabetically.
+- [ ] Storage Location can be left unselected.
+- [ ] Saving a product preserves its selected storage location when edited again.
+- [ ] Changing a product's storage location persists after returning to the Products screen.
+- [ ] Existing products still open normally after the StorageLocationID migration.
+- [ ] Sample products include examples from every built-in storage location.
 
 ## Shopping Lists
 

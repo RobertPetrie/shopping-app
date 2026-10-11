@@ -13,10 +13,11 @@ namespace shopping_app.Pages
 	{
 		private bool isBusy;
 
-		// Keep the saved category ID until the picker data has loaded.
+		// Keep saved lookup IDs until the picker data has loaded.
 		private int? editingProductCategoryId;
+		private int? editingStorageLocationId;
 
-		private bool categoriesLoaded;
+		private bool lookupsLoaded;
 
 		// Null means Add mode; otherwise identifies the existing record.
 		private int? editingProductId;
@@ -46,7 +47,8 @@ namespace shopping_app.Pages
 				ProductNameEntry.Text = product.Name;
 				ProductDescriptionEditor.Text = product.Description;
 				editingProductCategoryId = product.ProductCategoryID;
-				SelectEditingCategory();
+				editingStorageLocationId = product.StorageLocationID;
+				SelectEditingLookups();
 
 				ClearNameError();
 
@@ -71,9 +73,9 @@ namespace shopping_app.Pages
 		{
 			base.OnAppearing();
 
-			if (categoriesLoaded)
+			if (lookupsLoaded)
 			{
-				SelectEditingCategory();
+				SelectEditingLookups();
 				return;
 			}
 
@@ -86,41 +88,51 @@ namespace shopping_app.Pages
 				var database =
 					services.GetRequiredService<AppDatabase>();
 
-				// Categories come from their own database table.
+				// Both pickers use lookup tables so the form stays data-driven.
 				ProductCategoryPicker.ItemsSource =
 					await database.GetProductCategoriesAsync();
 
-				categoriesLoaded = true;
-				SelectEditingCategory();
+				StorageLocationPicker.ItemsSource =
+					await database.GetStorageLocationsAsync();
+
+				lookupsLoaded = true;
+				SelectEditingLookups();
 			}
 			catch (Exception ex)
 			{
 				System.Diagnostics.Debug.WriteLine(
-					$"Could not load product categories: {ex}");
+					$"Could not load product lookups: {ex}");
 
 				await DisplayAlertAsync(
-					"Product Categories",
-					"Product categories could not be loaded. Please try again.",
+					"Product Lookups",
+					"Product categories or storage locations could not be loaded. Please try again.",
 					"OK");
 			}
 		}
 
-		private void SelectEditingCategory()
+		private void SelectEditingLookups()
 		{
-			if (editingProductCategoryId is not int categoryId
-				|| ProductCategoryPicker.ItemsSource is not
+			if (editingProductCategoryId is int categoryId
+				&& ProductCategoryPicker.ItemsSource is
 					IEnumerable<ProductCategory> categories)
 			{
-				return;
+				var selectedCategory =
+					categories.FirstOrDefault(category => category.ID == categoryId);
+
+				ProductCategoryPicker.SelectedItem = selectedCategory;
+
+				// Show the tax value that belongs to the saved category.
+				UpdateTaxableStatus(selectedCategory);
 			}
 
-			var selectedCategory =
-				categories.FirstOrDefault(category => category.ID == categoryId);
-
-			ProductCategoryPicker.SelectedItem = selectedCategory;
-
-			// Show the tax value that belongs to the saved category.
-			UpdateTaxableStatus(selectedCategory);
+			if (editingStorageLocationId is int storageLocationId
+				&& StorageLocationPicker.ItemsSource is
+					IEnumerable<StorageLocation> storageLocations)
+			{
+				StorageLocationPicker.SelectedItem =
+					storageLocations.FirstOrDefault(
+						location => location.ID == storageLocationId);
+			}
 		}
 
 		/// <summary>
@@ -192,6 +204,10 @@ namespace shopping_app.Pages
 					var selectedCategory =
 						(ProductCategory)ProductCategoryPicker.SelectedItem;
 
+					// Storage location is optional, so null is a valid choice.
+					int? selectedStorageLocationId =
+						(StorageLocationPicker.SelectedItem as StorageLocation)?.ID;
+
 					if (editingProductId is int id)
 					{
 						// Update the existing record without changing its ID.
@@ -199,7 +215,8 @@ namespace shopping_app.Pages
 							id,
 							name,
 							description,
-							selectedCategory.ID);
+							selectedCategory.ID,
+							selectedStorageLocationId);
 
 						savedProductId = id;
 					}
@@ -209,7 +226,8 @@ namespace shopping_app.Pages
 						var product = await database.AddProductAsync(
 							name,
 							description,
-							selectedCategory.ID);
+							selectedCategory.ID,
+							selectedStorageLocationId);
 
 						savedProductId = product.ID;
 					}
@@ -400,6 +418,9 @@ namespace shopping_app.Pages
 				!busy && savedProductId is null;
 
 			ProductCategoryPicker.IsEnabled =
+				!busy && savedProductId is null;
+
+			StorageLocationPicker.IsEnabled =
 				!busy && savedProductId is null;
 
 			SavingIndicator.IsVisible = busy;

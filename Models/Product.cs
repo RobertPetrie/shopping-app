@@ -26,6 +26,11 @@ namespace shopping_app.Models
 		[Indexed]
 		public int? ProductCategoryID { get; set; }
 
+		// Optional home storage location for this product.
+		// Existing products stay null until the user chooses a location.
+		[Indexed]
+		public int? StorageLocationID { get; set; }
+
 		// Assigned by AddProductAsync immediately before insertion.
 		[NotNull]
 		public DateTime CreatedOn { get; set; }

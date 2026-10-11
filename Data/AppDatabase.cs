@@ -97,6 +97,13 @@ namespace shopping_app.Data
 					await EnsureProductCategoriesAsync(newConnection)
 						.ConfigureAwait(false);
 
+					// Storage locations are reference data used by the Product form.
+					await newConnection.CreateTableAsync<StorageLocation>()
+						.ConfigureAwait(false);
+
+					await EnsureStorageLocationsAsync(newConnection)
+						.ConfigureAwait(false);
+
 					// Older app databases may not have the newer Product columns.
 					// Add them before sqlite-net compares the Product model so
 					// existing rows remain intact.
@@ -148,6 +155,24 @@ namespace shopping_app.Data
                                 ADD COLUMN "ProductCategoryID" INTEGER;
                                 """).ConfigureAwait(false);
 						}
+
+						int storageLocationColumnExists =
+							await newConnection.ExecuteScalarAsync<int>(
+								"""
+                                SELECT COUNT(*)
+                                FROM pragma_table_info('Product')
+                                WHERE name = 'StorageLocationID';
+                                """).ConfigureAwait(false);
+
+						if (storageLocationColumnExists == 0)
+						{
+							// Existing products remain unassigned until edited.
+							await newConnection.ExecuteAsync(
+								"""
+                                ALTER TABLE "Product"
+                                ADD COLUMN "StorageLocationID" INTEGER;
+                                """).ConfigureAwait(false);
+						}
 					}
 
 					// Create parent tables before the linking table.
@@ -163,6 +188,14 @@ namespace shopping_app.Data
                         CREATE INDEX IF NOT EXISTS
                             "IX_Product_ProductCategoryID"
                         ON "Product" ("ProductCategoryID");
+                        """).ConfigureAwait(false);
+
+					// Storage location is another Product lookup.
+					await newConnection.ExecuteAsync(
+						"""
+                        CREATE INDEX IF NOT EXISTS
+                            "IX_Product_StorageLocationID"
+                        ON "Product" ("StorageLocationID");
                         """).ConfigureAwait(false);
 
 					// Preserve existing tables and records.
@@ -289,6 +322,86 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
+		/// Default home-storage labels. There is intentionally no sort-order column;
+		/// the picker sorts these names alphabetically.
+		/// </summary>
+		private static readonly string[] BuiltInStorageLocations =
+		[
+			"Pantry",
+			"Refrigerator",
+			"Freezer",
+			"Kitchen Cabinet",
+			"Bathroom",
+			"Laundry Room",
+			"Basement",
+			"Garage",
+			"Other"
+		];
+
+		private static async Task EnsureStorageLocationsAsync(
+			SQLiteAsyncConnection database)
+		{
+			foreach (string name in BuiltInStorageLocations)
+			{
+				var existing = await database
+					.Table<StorageLocation>()
+					.Where(location => location.Name == name)
+					.FirstOrDefaultAsync()
+					.ConfigureAwait(false);
+
+				if (existing is null)
+				{
+					await database.InsertAsync(new StorageLocation
+					{
+						Name = name
+					}).ConfigureAwait(false);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Return storage locations alphabetically for the Product form.
+		/// </summary>
+		public async Task<List<StorageLocation>> GetStorageLocationsAsync()
+		{
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database
+				.Table<StorageLocation>()
+				.OrderBy(location => location.Name)
+				.ToListAsync()
+				.ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Verify a selected storage location still exists before saving.
+		/// Null is allowed because storage location is optional.
+		/// </summary>
+		private static void EnsureStorageLocationExists(
+			SQLiteConnection database,
+			int? storageLocationId)
+		{
+			if (storageLocationId is null)
+			{
+				return;
+			}
+
+			int count = database.ExecuteScalar<int>(
+				"""
+                SELECT COUNT(*)
+                FROM "StorageLocation"
+                WHERE "ID" = ?;
+                """,
+				storageLocationId.Value);
+
+			if (count == 0)
+			{
+				throw new KeyNotFoundException(
+					"The selected storage location no longer exists.");
+			}
+		}
+
+		/// <summary>
 		/// Verify a selected category still exists before saving a product.
 		/// </summary>
 		private static void EnsureProductCategoryExists(
@@ -392,7 +505,8 @@ namespace shopping_app.Data
 		public async Task<Product> AddProductAsync(
 			string name,
 			string? description = null,
-			int? productCategoryId = null)
+			int? productCategoryId = null,
+			int? storageLocationId = null)
 		{
 			if (string.IsNullOrWhiteSpace(name))
 			{
@@ -407,6 +521,7 @@ namespace shopping_app.Data
 				Name = name.Trim(),
 				Description = description,
 				ProductCategoryID = productCategoryId,
+				StorageLocationID = storageLocationId,
 				CreatedOn = DateTime.UtcNow,
 				ModifiedOn = null
 			};
@@ -419,6 +534,10 @@ namespace shopping_app.Data
 				EnsureProductCategoryExists(
 					transaction,
 					product.ProductCategoryID);
+
+				EnsureStorageLocationExists(
+					transaction,
+					product.StorageLocationID);
 
 				// SQLite assigns the ID and updates product.ID.
 				transaction.Insert(product);
@@ -435,7 +554,8 @@ namespace shopping_app.Data
 			int productId,
 			string name,
 			string? description = null,
-			int? productCategoryId = null)
+			int? productCategoryId = null,
+			int? storageLocationId = null)
 		{
 			if (productId <= 0)
 			{
@@ -467,6 +587,10 @@ namespace shopping_app.Data
 					transaction,
 					productCategoryId);
 
+				EnsureStorageLocationExists(
+					transaction,
+					storageLocationId);
+
 				// Change only the editable fields and modification time.
 				// Parameters keep user-entered text separate from SQL.
 				int rowsUpdated = transaction.Execute(
@@ -475,12 +599,14 @@ namespace shopping_app.Data
                     SET "Name" = ?,
                         "Description" = ?,
                         "ProductCategoryID" = ?,
+                        "StorageLocationID" = ?,
                         "ModifiedOn" = ?
                     WHERE "ID" = ?;
                     """,
 					trimmedName,
 					description,
 					productCategoryId,
+					storageLocationId,
 					DateTime.UtcNow.Ticks,
 					productId);
 

@@ -77,6 +77,120 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
+		public async Task GetStorageLocationsAsync_ReturnsBuiltInChoicesAlphabetically()
+		{
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var locations = await database.GetStorageLocationsAsync();
+
+				Assert.Equal(
+					[
+						"Basement",
+						"Bathroom",
+						"Freezer",
+						"Garage",
+						"Kitchen Cabinet",
+						"Laundry Room",
+						"Other",
+						"Pantry",
+						"Refrigerator"
+					],
+					locations.Select(location => location.Name));
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
+		public async Task AddAndUpdateProductAsync_PersistsStorageLocation()
+		{
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var categories = await database.GetProductCategoriesAsync();
+				var grocery = categories.Single(
+					category => category.Name == "Basic Grocery");
+
+				var locations = await database.GetStorageLocationsAsync();
+				var pantry = locations.Single(
+					location => location.Name == "Pantry");
+				var refrigerator = locations.Single(
+					location => location.Name == "Refrigerator");
+
+				var product = await database.AddProductAsync(
+					"Storage Test",
+					productCategoryId: grocery.ID,
+					storageLocationId: pantry.ID);
+
+				Assert.Equal(pantry.ID, product.StorageLocationID);
+
+				await database.UpdateProductAsync(
+					product.ID,
+					product.Name,
+					product.Description,
+					grocery.ID,
+					refrigerator.ID);
+
+				var connection = await database.GetConnectionAsync();
+				var saved = await connection
+					.Table<Product>()
+					.Where(item => item.ID == product.ID)
+					.FirstAsync();
+
+				Assert.Equal(refrigerator.ID, saved.StorageLocationID);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
+		public async Task AddProductAsync_WithMissingStorageLocation_RejectsReference()
+		{
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				await Assert.ThrowsAsync<KeyNotFoundException>(
+					() => database.AddProductAsync(
+						"Bad Storage Location",
+						storageLocationId: 999999));
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
+		public async Task AddProductAsync_WithoutStorageLocation_AllowsNull()
+		{
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var product = await database.AddProductAsync(
+					"Unassigned Storage");
+
+				Assert.Null(product.StorageLocationID);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
 		public async Task AddProductAsync_WithMissingCategory_RejectsReference()
 		{
 			string databasePath = CreateTemporaryDatabasePath();
@@ -174,13 +288,23 @@ namespace ShoppingApp.Tests
                         WHERE name = 'IsTaxable';
                         """);
 
+				int storageLocationColumnCount =
+					await connection.ExecuteScalarAsync<int>(
+						"""
+                        SELECT COUNT(*)
+                        FROM pragma_table_info('Product')
+                        WHERE name = 'StorageLocationID';
+                        """);
+
 				var legacyProduct = await connection
 					.Table<Product>()
 					.Where(item => item.Name == "Legacy Milk")
 					.FirstAsync();
 
 				Assert.Equal(0, taxColumnCount);
+				Assert.Equal(1, storageLocationColumnCount);
 				Assert.Null(legacyProduct.ProductCategoryID);
+				Assert.Null(legacyProduct.StorageLocationID);
 			}
 			finally
 			{

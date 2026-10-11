@@ -101,6 +101,21 @@
                     SemanticProperties.Description="Taxable status based on the selected category" />
             </VerticalStackLayout>
 
+            <!-- Storage location is optional and comes from its own lookup table. -->
+            <VerticalStackLayout Spacing="6">
+                <Label
+                    Text="Storage Location"
+                    FontSize="16"
+                    FontAttributes="Bold" />
+
+                <Picker
+                    x:Name="StorageLocationPicker"
+                    AutomationId="StorageLocationPicker"
+                    Title="Select a storage location"
+                    ItemDisplayBinding="{Binding Name}"
+                    SemanticProperties.Description="Home storage location, optional" />
+            </VerticalStackLayout>
+
             <Label
                 Text="* Required"
                 FontSize="12"

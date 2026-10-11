@@ -32,80 +32,124 @@ namespace shopping_app.Data
 			SQLite.SQLiteAsyncConnection connection)
 		{
 			var testProducts =
-				new (string Name, string Description, string CategoryName)[]
+				new (
+					string Name,
+					string Description,
+					string CategoryName,
+					string StorageLocationName)[]
 			{
 				("Disco Bananas",
 					"Excellent dance partners. Slightly slippery.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Pantry"),
 				("Ninja Noodles",
 					"They disappear from your bowl without a trace.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Pantry"),
 				("Dragon Breath Hot Sauce",
 					"For tacos that need a dramatic entrance.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Pantry"),
 				("Unicorn Breakfast Cereal",
 					"A magical start to an otherwise ordinary Tuesday.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Pantry"),
 				("Emergency Chocolate",
 					"Break open in case of Monday.",
-					"Candy / Confectionery"),
+					"Candy / Confectionery",
+					"Kitchen Cabinet"),
 				("Space Pirate Popcorn",
 					"The official snack of questionable space missions.",
-					"Snack Food"),
+					"Snack Food",
+					"Pantry"),
 				("Sneaky Pickles",
 					"Somehow always missing when you want a sandwich.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Refrigerator"),
 				("Superhero Spinach",
 					"Cape sold separately.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Refrigerator"),
 				("Midnight Taco Shells",
 					"Because good ideas happen after bedtime.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Pantry"),
 				("Grumpy Cat Coffee",
 					"Do not speak to the mug until it is empty.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Kitchen Cabinet"),
 				("Moon Cheese",
 					"Suspiciously delicious. Probably from Earth.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Refrigerator"),
 				("Rainbow Carrots",
 					"A vegetable drawer with main-character energy.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Refrigerator"),
 				("Zombie Survival Beans",
 					"A pantry essential for unexpected visitors.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Pantry"),
 				("Fancy Pants Pasta",
 					"Dress code: extra parmesan.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Pantry"),
 				("Happy Camper Marshmallows",
 					"Ready for campfires and terrible ghost stories.",
-					"Candy / Confectionery"),
+					"Candy / Confectionery",
+					"Pantry"),
 				("Rocket Fuel Granola",
 					"Launch your morning one crunchy bite at a time.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Pantry"),
 				("Secret Agent Apples",
 					"Their mission: infiltrate your lunchbox.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Refrigerator"),
 				("Pirate Treasure Cookies",
 					"Contains chocolate chips, not actual gold.",
-					"Snack Food"),
+					"Snack Food",
+					"Pantry"),
 				("Royal Couch Potato Chips",
 					"Best served during one more episode.",
-					"Snack Food"),
+					"Snack Food",
+					"Pantry"),
 				("Victory Ice Cream",
 					"For celebrating achievements of any size.",
-					"Basic Grocery"),
+					"Basic Grocery",
+					"Freezer"),
 				("Cosmic Cola",
 					"Fizzy fuel for intergalactic grocery runs.",
-					"Carbonated Beverage"),
+					"Carbonated Beverage",
+					"Refrigerator"),
 				("Emergency Paper Towels",
 					"Because spills never schedule appointments.",
-					"Household / Non-Food"),
+					"Household / Non-Food",
+					"Basement"),
 				("Grab-and-Go Sandwich",
 					"Lunch that understands you are in a hurry.",
-					"Prepared Food"),
+					"Prepared Food",
+					"Refrigerator"),
 				("Mystery Aisle Surprise",
 					"For items that refuse to fit anywhere else.",
-					"Other")
+					"Other",
+					"Other"),
+				("Bathroom Tissue",
+					"The throne-room supply nobody wants to run out of.",
+					"Household / Non-Food",
+					"Bathroom"),
+				("Laundry Detergent",
+					"Helps socks return from their adventures.",
+					"Household / Non-Food",
+					"Laundry Room"),
+				("Car Wash Soap",
+					"For making the driveway jealous.",
+					"Household / Non-Food",
+					"Garage"),
+				("Frozen Pizza",
+					"Emergency dinner with a crispy ending.",
+					"Prepared Food",
+					"Freezer")
 			};
 
 			int createdCount = 0;
@@ -117,6 +161,11 @@ namespace shopping_app.Data
 					.Where(value => value.Name == item.CategoryName)
 					.FirstAsync();
 
+				var storageLocation = await connection
+					.Table<StorageLocation>()
+					.Where(value => value.Name == item.StorageLocationName)
+					.FirstAsync();
+
 				var existingProduct = await connection
 					.Table<Product>()
 					.Where(product => product.Name == item.Name)
@@ -124,18 +173,21 @@ namespace shopping_app.Data
 
 				if (existingProduct is not null)
 				{
-					// Backfill category only on untouched sample rows.
-					// User-edited samples keep the category the user chose.
+					// Backfill lookup values only on untouched sample rows.
+					// User-edited samples keep the choices the user made.
 					if (existingProduct.ModifiedOn is null
-						&& existingProduct.ProductCategoryID != category.ID)
+						&& (existingProduct.ProductCategoryID != category.ID
+							|| existingProduct.StorageLocationID != storageLocation.ID))
 					{
 						await connection.ExecuteAsync(
 							"""
                             UPDATE "Product"
-                            SET "ProductCategoryID" = ?
+                            SET "ProductCategoryID" = ?,
+                                "StorageLocationID" = ?
                             WHERE "ID" = ?;
                             """,
 							category.ID,
+							storageLocation.ID,
 							existingProduct.ID);
 					}
 
@@ -145,7 +197,8 @@ namespace shopping_app.Data
 				await database.AddProductAsync(
 					item.Name,
 					item.Description,
-					category.ID);
+					category.ID,
+					storageLocation.ID);
 
 				createdCount++;
 			}

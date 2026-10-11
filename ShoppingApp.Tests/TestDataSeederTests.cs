@@ -19,12 +19,16 @@ namespace ShoppingApp.Tests
 				var connection = await database.GetConnectionAsync();
 
 				Assert.Equal(
-					24,
+					28,
 					await connection.Table<Product>().CountAsync());
 
 				Assert.Equal(
 					7,
 					await connection.Table<ProductCategory>().CountAsync());
+
+				Assert.Equal(
+					9,
+					await connection.Table<StorageLocation>().CountAsync());
 
 				// Taxability belongs to the category, while products store only
 				// the category they were assigned.
@@ -69,6 +73,18 @@ namespace ShoppingApp.Tests
 						products,
 						product => product.ProductCategoryID == category.ID));
 
+				// Every built-in storage location has sample data so the picker
+				// can be exercised without creating extra records by hand.
+				var storageLocations = await connection
+					.Table<StorageLocation>()
+					.ToListAsync();
+
+				Assert.All(
+					storageLocations,
+					location => Assert.Contains(
+						products,
+						product => product.StorageLocationID == location.ID));
+
 				Assert.Equal(
 					12,
 					await connection.Table<ShoppingList>().CountAsync());
@@ -105,7 +121,7 @@ namespace ShoppingApp.Tests
 				var connection = await database.GetConnectionAsync();
 
 				Assert.Equal(
-					24,
+					28,
 					await connection.Table<Product>().CountAsync());
 
 				Assert.Equal(
