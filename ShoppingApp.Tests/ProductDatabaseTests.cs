@@ -347,7 +347,21 @@ namespace ShoppingApp.Tests
 			try
 			{
 				var categories = await database.GetProductCategoriesAsync();
+				var connection = await database.GetConnectionAsync();
 
+				// The explicit migration must add the new NOT NULL column
+				// before sqlite-net attempts any model-driven migration.
+				int taxColumnCount = await connection.ExecuteScalarAsync<int>(
+					"""
+                    SELECT COUNT(*)
+                    FROM pragma_table_info('ProductCategory')
+                    WHERE name = 'IsTaxable';
+                    """);
+
+				Assert.Equal(1, taxColumnCount);
+
+				// Existing category rows survive and receive their intended
+				// built-in tax settings during the one-time migration.
 				Assert.False(categories.Single(
 					category => category.Name == "Basic Grocery").IsTaxable);
 

@@ -68,30 +68,50 @@ namespace shopping_app.Data
 
 					// Product categories are app reference data, not development-only
 					// test data, so every database gets the same seven choices.
-					await newConnection.CreateTableAsync<ProductCategory>()
-						.ConfigureAwait(false);
-
-					int categoryTaxColumnExists =
+					//
+					// Important: do not ask sqlite-net to migrate an old category
+					// table before our explicit migration runs. IsTaxable is NOT NULL,
+					// and sqlite-net cannot add that column to a table that already
+					// contains rows unless a SQL default is supplied.
+					int categoryTableExists =
 						await newConnection.ExecuteScalarAsync<int>(
 							"""
                             SELECT COUNT(*)
-                            FROM pragma_table_info('ProductCategory')
-                            WHERE name = 'IsTaxable';
+                            FROM sqlite_master
+                            WHERE type = 'table'
+                              AND name = 'ProductCategory';
                             """).ConfigureAwait(false);
 
-					if (categoryTaxColumnExists == 0)
+					if (categoryTableExists == 0)
 					{
-						// Older databases had categories without a tax flag.
-						// Add the flag first, then give the built-in categories
-						// the same defaults used by a brand-new database.
-						await newConnection.ExecuteAsync(
-							"""
-                            ALTER TABLE "ProductCategory"
-                            ADD COLUMN "IsTaxable" INTEGER NOT NULL DEFAULT 0;
-                            """).ConfigureAwait(false);
-
-						await ApplyBuiltInCategoryTaxDefaultsAsync(newConnection)
+						// A brand-new database can use the current model directly.
+						await newConnection.CreateTableAsync<ProductCategory>()
 							.ConfigureAwait(false);
+					}
+					else
+					{
+						int categoryTaxColumnExists =
+							await newConnection.ExecuteScalarAsync<int>(
+								"""
+                                SELECT COUNT(*)
+                                FROM pragma_table_info('ProductCategory')
+                                WHERE name = 'IsTaxable';
+                                """).ConfigureAwait(false);
+
+						if (categoryTaxColumnExists == 0)
+						{
+							// Older databases had categories without a tax flag.
+							// Add a SQL default so existing rows receive a valid value,
+							// then apply the intended built-in category defaults.
+							await newConnection.ExecuteAsync(
+								"""
+                                ALTER TABLE "ProductCategory"
+                                ADD COLUMN "IsTaxable" INTEGER NOT NULL DEFAULT 0;
+                                """).ConfigureAwait(false);
+
+							await ApplyBuiltInCategoryTaxDefaultsAsync(newConnection)
+								.ConfigureAwait(false);
+						}
 					}
 
 					await EnsureProductCategoriesAsync(newConnection)
