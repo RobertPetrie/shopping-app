@@ -16,6 +16,11 @@ namespace shopping_app.Pages
 		// New products start as not taxable until the user chooses Yes.
 		private bool isTaxable;
 
+		// Keep the saved category ID until the picker data has loaded.
+		private int? editingProductCategoryId;
+
+		private bool categoriesLoaded;
+
 		// Null means Add mode; otherwise identifies the existing record.
 		private int? editingProductId;
 
@@ -43,8 +48,10 @@ namespace shopping_app.Pages
 
 				ProductNameEntry.Text = product.Name;
 				ProductDescriptionEditor.Text = product.Description;
+				editingProductCategoryId = product.ProductCategoryID;
 				isTaxable = product.IsTaxable;
 				UpdateTaxableButton();
+				SelectEditingCategory();
 
 				ClearNameError();
 
@@ -65,8 +72,59 @@ namespace shopping_app.Pages
 			}
 		}
 
+		protected override async void OnAppearing()
+		{
+			base.OnAppearing();
+
+			if (categoriesLoaded)
+			{
+				SelectEditingCategory();
+				return;
+			}
+
+			try
+			{
+				var services = Handler?.MauiContext?.Services
+					?? throw new InvalidOperationException(
+						"The page's app services are unavailable.");
+
+				var database =
+					services.GetRequiredService<AppDatabase>();
+
+				// Categories come from their own database table.
+				ProductCategoryPicker.ItemsSource =
+					await database.GetProductCategoriesAsync();
+
+				categoriesLoaded = true;
+				SelectEditingCategory();
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine(
+					$"Could not load product categories: {ex}");
+
+				await DisplayAlertAsync(
+					"Product Categories",
+					"Product categories could not be loaded. Please try again.",
+					"OK");
+			}
+		}
+
+		private void SelectEditingCategory()
+		{
+			if (editingProductCategoryId is not int categoryId
+				|| ProductCategoryPicker.ItemsSource is not
+					IEnumerable<ProductCategory> categories)
+			{
+				return;
+			}
+
+			ProductCategoryPicker.SelectedItem =
+				categories.FirstOrDefault(category => category.ID == categoryId);
+		}
+
 		/// <summary>
-		/// Validate the required name and check for duplicates.
+		/// Validate the required name and category, then check for duplicates.
 		/// Insert or update, then return the saved ID to the products list.
 		/// </summary>
 		private async void OnSaveClicked(object? sender, EventArgs e)
@@ -85,7 +143,15 @@ namespace shopping_app.Pages
 				return;
 			}
 
+			if (savedProductId is null
+				&& ProductCategoryPicker.SelectedItem is not ProductCategory)
+			{
+				ShowCategoryError("Choose a product category.");
+				return;
+			}
+
 			ClearNameError();
+			ClearCategoryError();
 			SetBusy(true);
 
 			try
@@ -123,6 +189,9 @@ namespace shopping_app.Pages
 						description = null;
 					}
 
+					var selectedCategory =
+						(ProductCategory)ProductCategoryPicker.SelectedItem;
+
 					if (editingProductId is int id)
 					{
 						// Update the existing record without changing its ID.
@@ -130,7 +199,8 @@ namespace shopping_app.Pages
 							id,
 							name,
 							description,
-							isTaxable);
+							isTaxable,
+							selectedCategory.ID);
 
 						savedProductId = id;
 					}
@@ -140,7 +210,8 @@ namespace shopping_app.Pages
 						var product = await database.AddProductAsync(
 							name,
 							description,
-							isTaxable);
+							isTaxable,
+							selectedCategory.ID);
 
 						savedProductId = product.ID;
 					}
@@ -243,6 +314,26 @@ namespace shopping_app.Pages
 			return Shell.Current.GoToAsync("..");
 		}
 
+		// Changing category never changes the separate taxable choice.
+		private void OnCategoryChanged(object? sender, EventArgs e)
+		{
+			ClearCategoryError();
+		}
+
+		private void ShowCategoryError(string message)
+		{
+			CategoryValidationLabel.Text = message;
+			CategoryValidationLabel.IsVisible = true;
+			ProductCategoryPicker.Focus();
+			SemanticScreenReader.Announce(message);
+		}
+
+		private void ClearCategoryError()
+		{
+			CategoryValidationLabel.IsVisible = false;
+			CategoryValidationLabel.Text = string.Empty;
+		}
+
 		// Toggle between the two tax choices without opening another control.
 		private void OnTaxableClicked(object? sender, EventArgs e)
 		{
@@ -312,6 +403,9 @@ namespace shopping_app.Pages
 				!busy && savedProductId is null;
 
 			ProductDescriptionEditor.IsEnabled =
+				!busy && savedProductId is null;
+
+			ProductCategoryPicker.IsEnabled =
 				!busy && savedProductId is null;
 
 			TaxableButton.IsEnabled =

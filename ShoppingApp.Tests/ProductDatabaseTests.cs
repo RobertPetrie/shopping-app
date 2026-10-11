@@ -87,6 +87,94 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
+		public async Task GetProductCategoriesAsync_ReturnsBuiltInChoicesInOrder()
+		{
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var categories = await database.GetProductCategoriesAsync();
+
+				Assert.Equal(
+					[
+						"Basic Grocery",
+						"Snack Food",
+						"Candy / Confectionery",
+						"Carbonated Beverage",
+						"Household / Non-Food",
+						"Prepared Food",
+						"Other"
+					],
+					categories.Select(category => category.Name));
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
+		public async Task AddAndUpdateProductAsync_PersistsChosenCategory()
+		{
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var categories = await database.GetProductCategoriesAsync();
+				var grocery = categories.Single(
+					category => category.Name == "Basic Grocery");
+				var snack = categories.Single(
+					category => category.Name == "Snack Food");
+
+				var product = await database.AddProductAsync(
+					"Category Test",
+					productCategoryId: grocery.ID);
+
+				Assert.Equal(grocery.ID, product.ProductCategoryID);
+
+				await database.UpdateProductAsync(
+					product.ID,
+					product.Name,
+					product.Description,
+					product.IsTaxable,
+					snack.ID);
+
+				var connection = await database.GetConnectionAsync();
+				var saved = await connection
+					.Table<Product>()
+					.Where(item => item.ID == product.ID)
+					.FirstAsync();
+
+				Assert.Equal(snack.ID, saved.ProductCategoryID);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
+		public async Task AddProductAsync_WithMissingCategory_RejectsReference()
+		{
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				await Assert.ThrowsAsync<KeyNotFoundException>(
+					() => database.AddProductAsync(
+						"Bad Category",
+						productCategoryId: 999999));
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
 		public async Task GetConnectionAsync_LegacyProductTable_AddsTaxColumn()
 		{
 			string databasePath = CreateTemporaryDatabasePath();
@@ -136,13 +224,23 @@ namespace ShoppingApp.Tests
                         WHERE name = 'IsTaxable';
                         """);
 
+				int categoryColumnCount =
+					await connection.ExecuteScalarAsync<int>(
+						"""
+                        SELECT COUNT(*)
+                        FROM pragma_table_info('Product')
+                        WHERE name = 'ProductCategoryID';
+                        """);
+
 				var legacyProduct = await connection
 					.Table<Product>()
 					.Where(item => item.Name == "Legacy Milk")
 					.FirstAsync();
 
 				Assert.Equal(1, taxColumnCount);
+				Assert.Equal(1, categoryColumnCount);
 				Assert.False(legacyProduct.IsTaxable);
+				Assert.Null(legacyProduct.ProductCategoryID);
 			}
 			finally
 			{

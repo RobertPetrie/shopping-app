@@ -27,6 +27,11 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Saving a taxable product preserves Yes when the product is edited again.
 - [ ] Saving a non-taxable product preserves No when the product is edited again.
 - [ ] Existing products still open normally after the IsTaxable database migration.
+- [ ] Product Category picker shows all seven built-in categories in the expected order.
+- [ ] A new product cannot be saved until the user chooses a category.
+- [ ] Choosing a category does not change the Taxable Yes/No button.
+- [ ] Saving a product preserves the selected category when it is edited again.
+- [ ] Editing an older uncategorized product lets the user choose and save a category.
 
 ## Shopping Lists
 

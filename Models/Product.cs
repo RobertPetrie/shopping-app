@@ -21,8 +21,13 @@ namespace shopping_app.Models
 		// Null means the product has no picture.
 		public string? ImagePath { get; set; }
 
+		// The selected category is stored separately in ProductCategory.
+		// Null is allowed only for older records created before categories existed.
+		[Indexed]
+		public int? ProductCategoryID { get; set; }
+
 		// True means this product normally has sales tax applied.
-		// Existing products are migrated to false until the user changes them.
+		// Category selection does not change this value automatically.
 		[NotNull]
 		public bool IsTaxable { get; set; } = false;
 

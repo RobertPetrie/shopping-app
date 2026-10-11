@@ -64,7 +64,29 @@
                     SemanticProperties.Description="Product description, optional" />
             </VerticalStackLayout>
 
-            <!-- One button keeps the tax choice simple: tap to switch Yes/No. -->
+            <!-- Category is chosen by the user and does not change tax automatically. -->
+            <VerticalStackLayout Spacing="6">
+                <Label
+                    Text="Category *"
+                    FontSize="16"
+                    FontAttributes="Bold" />
+
+                <Picker
+                    x:Name="ProductCategoryPicker"
+                    AutomationId="ProductCategoryPicker"
+                    Title="Select a category"
+                    ItemDisplayBinding="{Binding Name}"
+                    SelectedIndexChanged="OnCategoryChanged"
+                    SemanticProperties.Description="Product category, required" />
+
+                <Label
+                    x:Name="CategoryValidationLabel"
+                    IsVisible="False"
+                    FontSize="14"
+                    TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}" />
+            </VerticalStackLayout>
+
+            <!-- Tax remains a separate Yes/No choice. -->
             <VerticalStackLayout Spacing="6">
                 <Label
                     Text="Taxable?"

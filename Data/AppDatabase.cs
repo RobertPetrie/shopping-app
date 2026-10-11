@@ -66,9 +66,17 @@ namespace shopping_app.Data
 					await newConnection.ExecuteAsync(
 						"PRAGMA foreign_keys = ON;").ConfigureAwait(false);
 
-					// Older app databases do not have IsTaxable yet.
-					// Add it before sqlite-net compares the Product model so
-					// existing rows remain intact and default to not taxable.
+					// Product categories are app reference data, not development-only
+					// test data, so every database gets the same seven choices.
+					await newConnection.CreateTableAsync<ProductCategory>()
+						.ConfigureAwait(false);
+
+					await EnsureProductCategoriesAsync(newConnection)
+						.ConfigureAwait(false);
+
+					// Older app databases may not have the newer Product columns.
+					// Add them before sqlite-net compares the Product model so
+					// existing rows remain intact.
 					int productTableExists =
 						await newConnection.ExecuteScalarAsync<int>(
 							"""
@@ -96,6 +104,24 @@ namespace shopping_app.Data
                                 ADD COLUMN "IsTaxable" INTEGER NOT NULL DEFAULT 0;
                                 """).ConfigureAwait(false);
 						}
+
+						int categoryColumnExists =
+							await newConnection.ExecuteScalarAsync<int>(
+								"""
+                                SELECT COUNT(*)
+                                FROM pragma_table_info('Product')
+                                WHERE name = 'ProductCategoryID';
+                                """).ConfigureAwait(false);
+
+						if (categoryColumnExists == 0)
+						{
+							// Do not guess categories for existing products.
+							await newConnection.ExecuteAsync(
+								"""
+                                ALTER TABLE "Product"
+                                ADD COLUMN "ProductCategoryID" INTEGER;
+                                """).ConfigureAwait(false);
+						}
 					}
 
 					// Create parent tables before the linking table.
@@ -104,6 +130,14 @@ namespace shopping_app.Data
 
 					await newConnection.CreateTableAsync<ShoppingList>()
 						.ConfigureAwait(false);
+
+					// Support fast product-to-category lookups on new and old databases.
+					await newConnection.ExecuteAsync(
+						"""
+                        CREATE INDEX IF NOT EXISTS
+                            "IX_Product_ProductCategoryID"
+                        ON "Product" ("ProductCategoryID");
+                        """).ConfigureAwait(false);
 
 					// Preserve existing tables and records.
 					await newConnection.ExecuteAsync(
@@ -150,6 +184,84 @@ namespace shopping_app.Data
 			finally
 			{
 				initializationGate.Release();
+			}
+		}
+
+		/// <summary>
+		/// Insert any missing built-in categories without changing existing rows.
+		/// Categories classify products only; they never change IsTaxable.
+		/// </summary>
+		private static async Task EnsureProductCategoriesAsync(
+			SQLiteAsyncConnection database)
+		{
+			var categories = new (string Name, int SortOrder)[]
+			{
+				("Basic Grocery", 1),
+				("Snack Food", 2),
+				("Candy / Confectionery", 3),
+				("Carbonated Beverage", 4),
+				("Household / Non-Food", 5),
+				("Prepared Food", 6),
+				("Other", 7)
+			};
+
+			foreach (var category in categories)
+			{
+				var existing = await database
+					.Table<ProductCategory>()
+					.Where(item => item.Name == category.Name)
+					.FirstOrDefaultAsync()
+					.ConfigureAwait(false);
+
+				if (existing is null)
+				{
+					await database.InsertAsync(new ProductCategory
+					{
+						Name = category.Name,
+						SortOrder = category.SortOrder
+					}).ConfigureAwait(false);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Return categories in the order shown on the product form.
+		/// </summary>
+		public async Task<List<ProductCategory>> GetProductCategoriesAsync()
+		{
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database
+				.Table<ProductCategory>()
+				.OrderBy(category => category.SortOrder)
+				.ToListAsync()
+				.ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Verify a selected category still exists before saving a product.
+		/// </summary>
+		private static void EnsureProductCategoryExists(
+			SQLiteConnection database,
+			int? productCategoryId)
+		{
+			if (productCategoryId is null)
+			{
+				return;
+			}
+
+			int count = database.ExecuteScalar<int>(
+				"""
+                SELECT COUNT(*)
+                FROM "ProductCategory"
+                WHERE "ID" = ?;
+                """,
+				productCategoryId.Value);
+
+			if (count == 0)
+			{
+				throw new KeyNotFoundException(
+					"The selected product category no longer exists.");
 			}
 		}
 
@@ -230,7 +342,8 @@ namespace shopping_app.Data
 		public async Task<Product> AddProductAsync(
 			string name,
 			string? description = null,
-			bool isTaxable = false)
+			bool isTaxable = false,
+			int? productCategoryId = null)
 		{
 			if (string.IsNullOrWhiteSpace(name))
 			{
@@ -244,6 +357,7 @@ namespace shopping_app.Data
 			{
 				Name = name.Trim(),
 				Description = description,
+				ProductCategoryID = productCategoryId,
 				IsTaxable = isTaxable,
 				CreatedOn = DateTime.UtcNow,
 				ModifiedOn = null
@@ -254,6 +368,9 @@ namespace shopping_app.Data
 			await database.RunInTransactionAsync(transaction =>
 			{
 				EnsureUniqueProductName(transaction, product.Name);
+				EnsureProductCategoryExists(
+					transaction,
+					product.ProductCategoryID);
 
 				// SQLite assigns the ID and updates product.ID.
 				transaction.Insert(product);
@@ -270,7 +387,8 @@ namespace shopping_app.Data
 			int productId,
 			string name,
 			string? description = null,
-			bool isTaxable = false)
+			bool isTaxable = false,
+			int? productCategoryId = null)
 		{
 			if (productId <= 0)
 			{
@@ -298,6 +416,10 @@ namespace shopping_app.Data
 					trimmedName,
 					productId);
 
+				EnsureProductCategoryExists(
+					transaction,
+					productCategoryId);
+
 				// Change only the editable fields and modification time.
 				// Parameters keep user-entered text separate from SQL.
 				int rowsUpdated = transaction.Execute(
@@ -305,12 +427,14 @@ namespace shopping_app.Data
                     UPDATE "Product"
                     SET "Name" = ?,
                         "Description" = ?,
+                        "ProductCategoryID" = ?,
                         "IsTaxable" = ?,
                         "ModifiedOn" = ?
                     WHERE "ID" = ?;
                     """,
 					trimmedName,
 					description,
+					productCategoryId,
 					isTaxable,
 					DateTime.UtcNow.Ticks,
 					productId);
