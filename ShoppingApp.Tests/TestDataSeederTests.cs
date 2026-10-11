@@ -22,6 +22,20 @@ namespace ShoppingApp.Tests
 					20,
 					await connection.Table<Product>().CountAsync());
 
+				// Sample products include both sides of the Yes/No tax button.
+				var bananas = await connection
+					.Table<Product>()
+					.Where(product => product.Name == "Disco Bananas")
+					.FirstAsync();
+
+				var chips = await connection
+					.Table<Product>()
+					.Where(product => product.Name == "Royal Couch Potato Chips")
+					.FirstAsync();
+
+				Assert.False(bananas.IsTaxable);
+				Assert.True(chips.IsTaxable);
+
 				Assert.Equal(
 					12,
 					await connection.Table<ShoppingList>().CountAsync());

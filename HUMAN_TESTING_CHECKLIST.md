@@ -22,6 +22,11 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Product name spell checking appears when supported by the operating system.
 - [ ] Product description spell checking appears when supported by the operating system.
 - [ ] Product name and description text prediction behave normally on supported devices.
+- [ ] New Product form shows Taxable? with a Yes/No button and defaults to No.
+- [ ] Tapping the Taxable button switches cleanly between Yes and No.
+- [ ] Saving a taxable product preserves Yes when the product is edited again.
+- [ ] Saving a non-taxable product preserves No when the product is edited again.
+- [ ] Existing products still open normally after the IsTaxable database migration.
 
 ## Shopping Lists
 

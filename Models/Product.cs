@@ -21,6 +21,11 @@ namespace shopping_app.Models
 		// Null means the product has no picture.
 		public string? ImagePath { get; set; }
 
+		// True means this product normally has sales tax applied.
+		// Existing products are migrated to false until the user changes them.
+		[NotNull]
+		public bool IsTaxable { get; set; } = false;
+
 		// Assigned by AddProductAsync immediately before insertion.
 		[NotNull]
 		public DateTime CreatedOn { get; set; }

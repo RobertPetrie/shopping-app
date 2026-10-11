@@ -13,6 +13,9 @@ namespace shopping_app.Pages
 	{
 		private bool isBusy;
 
+		// New products start as not taxable until the user chooses Yes.
+		private bool isTaxable;
+
 		// Null means Add mode; otherwise identifies the existing record.
 		private int? editingProductId;
 
@@ -23,6 +26,7 @@ namespace shopping_app.Pages
 		public ProductDetailPage()
 		{
 			InitializeComponent();
+			UpdateTaxableButton();
 		}
 
 		/// <summary>
@@ -39,6 +43,8 @@ namespace shopping_app.Pages
 
 				ProductNameEntry.Text = product.Name;
 				ProductDescriptionEditor.Text = product.Description;
+				isTaxable = product.IsTaxable;
+				UpdateTaxableButton();
 
 				ClearNameError();
 
@@ -123,7 +129,8 @@ namespace shopping_app.Pages
 						await database.UpdateProductAsync(
 							id,
 							name,
-							description);
+							description,
+							isTaxable);
 
 						savedProductId = id;
 					}
@@ -132,7 +139,8 @@ namespace shopping_app.Pages
 						// Add mode retains the existing insertion behavior.
 						var product = await database.AddProductAsync(
 							name,
-							description);
+							description,
+							isTaxable);
 
 						savedProductId = product.ID;
 					}
@@ -235,6 +243,28 @@ namespace shopping_app.Pages
 			return Shell.Current.GoToAsync("..");
 		}
 
+		// Toggle between the two tax choices without opening another control.
+		private void OnTaxableClicked(object? sender, EventArgs e)
+		{
+			if (isBusy || savedProductId is not null)
+			{
+				return;
+			}
+
+			isTaxable = !isTaxable;
+			UpdateTaxableButton();
+		}
+
+		private void UpdateTaxableButton()
+		{
+			string answer = isTaxable ? "Yes" : "No";
+			TaxableButton.Text = answer;
+
+			SemanticProperties.SetDescription(
+				TaxableButton,
+				$"Taxable: {answer}. Tap to change.");
+		}
+
 		// Move to the description with the keyboard's Next action.
 		private void OnNameCompleted(object? sender, EventArgs e)
 		{
@@ -282,6 +312,9 @@ namespace shopping_app.Pages
 				!busy && savedProductId is null;
 
 			ProductDescriptionEditor.IsEnabled =
+				!busy && savedProductId is null;
+
+			TaxableButton.IsEnabled =
 				!busy && savedProductId is null;
 
 			SavingIndicator.IsVisible = busy;

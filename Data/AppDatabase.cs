@@ -66,6 +66,38 @@ namespace shopping_app.Data
 					await newConnection.ExecuteAsync(
 						"PRAGMA foreign_keys = ON;").ConfigureAwait(false);
 
+					// Older app databases do not have IsTaxable yet.
+					// Add it before sqlite-net compares the Product model so
+					// existing rows remain intact and default to not taxable.
+					int productTableExists =
+						await newConnection.ExecuteScalarAsync<int>(
+							"""
+                            SELECT COUNT(*)
+                            FROM sqlite_master
+                            WHERE type = 'table'
+                              AND name = 'Product';
+                            """).ConfigureAwait(false);
+
+					if (productTableExists > 0)
+					{
+						int taxableColumnExists =
+							await newConnection.ExecuteScalarAsync<int>(
+								"""
+                                SELECT COUNT(*)
+                                FROM pragma_table_info('Product')
+                                WHERE name = 'IsTaxable';
+                                """).ConfigureAwait(false);
+
+						if (taxableColumnExists == 0)
+						{
+							await newConnection.ExecuteAsync(
+								"""
+                                ALTER TABLE "Product"
+                                ADD COLUMN "IsTaxable" INTEGER NOT NULL DEFAULT 0;
+                                """).ConfigureAwait(false);
+						}
+					}
+
 					// Create parent tables before the linking table.
 					await newConnection.CreateTableAsync<Product>()
 						.ConfigureAwait(false);
@@ -197,7 +229,8 @@ namespace shopping_app.Data
 		/// </summary>
 		public async Task<Product> AddProductAsync(
 			string name,
-			string? description = null)
+			string? description = null,
+			bool isTaxable = false)
 		{
 			if (string.IsNullOrWhiteSpace(name))
 			{
@@ -211,6 +244,7 @@ namespace shopping_app.Data
 			{
 				Name = name.Trim(),
 				Description = description,
+				IsTaxable = isTaxable,
 				CreatedOn = DateTime.UtcNow,
 				ModifiedOn = null
 			};
@@ -229,13 +263,14 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
-		/// Update the name and description of an existing product.
+		/// Update the editable fields of an existing product.
 		/// Preserve its ID, CreatedOn, ImagePath, and shopping-list links.
 		/// </summary>
 		public async Task UpdateProductAsync(
 			int productId,
 			string name,
-			string? description = null)
+			string? description = null,
+			bool isTaxable = false)
 		{
 			if (productId <= 0)
 			{
@@ -270,11 +305,13 @@ namespace shopping_app.Data
                     UPDATE "Product"
                     SET "Name" = ?,
                         "Description" = ?,
+                        "IsTaxable" = ?,
                         "ModifiedOn" = ?
                     WHERE "ID" = ?;
                     """,
 					trimmedName,
 					description,
+					isTaxable,
 					DateTime.UtcNow.Ticks,
 					productId);
 
