@@ -123,7 +123,7 @@
                             </Border.Shadow>
 
                             <Grid
-                                ColumnDefinitions="*,Auto"
+                                ColumnDefinitions="*,Auto,Auto"
                                 ColumnSpacing="12">
 
                                 <Label
@@ -133,8 +133,17 @@
                                     VerticalOptions="Center"
                                     SemanticProperties.Hint="Tap to edit product" />
 
+                                <!-- Show where this product is kept at home. -->
                                 <Label
                                     Grid.Column="1"
+                                    Text="{Binding StorageLocationName}"
+                                    FontSize="14"
+                                    VerticalOptions="Center"
+                                    HorizontalTextAlignment="End"
+                                    TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+
+                                <Label
+                                    Grid.Column="2"
                                     Text="›"
                                     FontSize="28"
                                     VerticalOptions="Center"

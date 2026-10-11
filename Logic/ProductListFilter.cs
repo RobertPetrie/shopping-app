@@ -3,6 +3,16 @@ using shopping_app.Models;
 namespace shopping_app.Logic
 {
 	/// <summary>
+	/// User-facing sort choices for the Products screen.
+	/// </summary>
+	public enum ProductSortMode
+	{
+		NameAscending,
+		NameDescending,
+		StorageLocation
+	}
+
+	/// <summary>
 	/// Contains the product-list rules that do not depend on the screen.
 	/// Keeping these rules here makes the live search and sorting easy to test.
 	/// </summary>
@@ -15,7 +25,7 @@ namespace shopping_app.Logic
 		public static List<Product> FilterAndSort(
 			IEnumerable<Product> products,
 			string? searchText,
-			bool sortAscending)
+			ProductSortMode sortMode)
 		{
 			ArgumentNullException.ThrowIfNull(products);
 
@@ -33,15 +43,29 @@ namespace shopping_app.Logic
 						StringComparison.CurrentCultureIgnoreCase));
 			}
 
-			// Sort by the product name. ID is used only as a stable tie-breaker.
-			var sortedProducts = sortAscending
-				? visibleProducts.OrderBy(
+			IOrderedEnumerable<Product> sortedProducts = sortMode switch
+			{
+				ProductSortMode.NameDescending =>
+					visibleProducts.OrderByDescending(
+						product => product.Name,
+						StringComparer.CurrentCultureIgnoreCase),
+
+				ProductSortMode.StorageLocation =>
+					visibleProducts
+						.OrderBy(
+							product => product.StorageLocationName,
+							StringComparer.CurrentCultureIgnoreCase)
+						.ThenBy(
+							product => product.Name,
+							StringComparer.CurrentCultureIgnoreCase),
+
+				_ => visibleProducts.OrderBy(
 					product => product.Name,
 					StringComparer.CurrentCultureIgnoreCase)
-				: visibleProducts.OrderByDescending(
-					product => product.Name,
-					StringComparer.CurrentCultureIgnoreCase);
+			};
 
+			// Name modes use ID as their stable tie-breaker. Location mode already
+			// uses product name first, then ID keeps duplicate names deterministic.
 			return sortedProducts
 				.ThenBy(product => product.ID)
 				.ToList();

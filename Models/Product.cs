@@ -31,6 +31,11 @@ namespace shopping_app.Models
 		[Indexed]
 		public int? StorageLocationID { get; set; }
 
+		// Filled by the Products screen from the StorageLocation lookup table.
+		// Ignore keeps this friendly display text out of the Product database row.
+		[Ignore]
+		public string StorageLocationName { get; set; } = "Unassigned";
+
 		// Assigned by AddProductAsync immediately before insertion.
 		[NotNull]
 		public DateTime CreatedOn { get; set; }

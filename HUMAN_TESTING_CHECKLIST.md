@@ -13,7 +13,11 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Product search shows a sensible empty state when nothing matches.
 - [ ] A → Z sorting works.
 - [ ] Z → A sorting works.
-- [ ] Search and sorting work together.
+- [ ] A third sort mode shows `Loc` on the sort button and orders products by Storage Location.
+- [ ] The sort button cycles A → Z → Z → A → Loc → A → Z.
+- [ ] Each Product card shows its Storage Location on the right side.
+- [ ] Products sharing a Storage Location are ordered by product name within that location.
+- [ ] Search and all three sorting modes work together.
 - [ ] Add Product button opens the product form without a "Product Lookups" error.
 - [ ] Add Product button opens the product form.
 - [ ] On a new Product form, Category opens with all seven category choices available for selection.

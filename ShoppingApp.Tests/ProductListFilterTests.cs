@@ -7,10 +7,30 @@ namespace ShoppingApp.Tests
 	{
 		private static readonly List<Product> Products =
 		[
-			new Product { ID = 1, Name = "Bananas" },
-			new Product { ID = 2, Name = "Apple Juice" },
-			new Product { ID = 3, Name = "Apples" },
-			new Product { ID = 4, Name = "Chocolate" }
+			new Product
+			{
+				ID = 1,
+				Name = "Bananas",
+				StorageLocationName = "Pantry"
+			},
+			new Product
+			{
+				ID = 2,
+				Name = "Apple Juice",
+				StorageLocationName = "Refrigerator"
+			},
+			new Product
+			{
+				ID = 3,
+				Name = "Apples",
+				StorageLocationName = "Refrigerator"
+			},
+			new Product
+			{
+				ID = 4,
+				Name = "Chocolate",
+				StorageLocationName = "Kitchen Cabinet"
+			}
 		];
 
 		[Fact]
@@ -20,7 +40,7 @@ namespace ShoppingApp.Tests
 			var result = ProductListFilter.FilterAndSort(
 				Products,
 				string.Empty,
-				sortAscending: true);
+				ProductSortMode.NameAscending);
 
 			Assert.Equal(
 				["Apple Juice", "Apples", "Bananas", "Chocolate"],
@@ -35,7 +55,7 @@ namespace ShoppingApp.Tests
 			var result = ProductListFilter.FilterAndSort(
 				Products,
 				"app",
-				sortAscending: true);
+				ProductSortMode.NameAscending);
 
 			Assert.Equal(
 				["Apple Juice", "Apples"],
@@ -49,7 +69,7 @@ namespace ShoppingApp.Tests
 			var result = ProductListFilter.FilterAndSort(
 				Products,
 				"  apple  ",
-				sortAscending: true);
+				ProductSortMode.NameAscending);
 
 			Assert.Equal(
 				["Apple Juice", "Apples"],
@@ -63,7 +83,7 @@ namespace ShoppingApp.Tests
 			var result = ProductListFilter.FilterAndSort(
 				Products,
 				"oranges",
-				sortAscending: true);
+				ProductSortMode.NameAscending);
 
 			Assert.Empty(result);
 		}
@@ -76,7 +96,7 @@ namespace ShoppingApp.Tests
 			var result = ProductListFilter.FilterAndSort(
 				Products,
 				string.Empty,
-				sortAscending: false);
+				ProductSortMode.NameDescending);
 
 			Assert.Equal(
 				["Chocolate", "Bananas", "Apples", "Apple Juice"],
@@ -91,10 +111,39 @@ namespace ShoppingApp.Tests
 			var result = ProductListFilter.FilterAndSort(
 				Products,
 				"app",
-				sortAscending: false);
+				ProductSortMode.NameDescending);
 
 			Assert.Equal(
 				["Apples", "Apple Juice"],
+				result.Select(product => product.Name));
+		}
+
+		[Fact]
+		public void FilterAndSort_ByStorageLocation_GroupsLocationsAlphabetically()
+		{
+			// The third sort mode should order by storage location first and
+			// product name second so products from the same place stay together.
+			var result = ProductListFilter.FilterAndSort(
+				Products,
+				string.Empty,
+				ProductSortMode.StorageLocation);
+
+			Assert.Equal(
+				["Chocolate", "Bananas", "Apple Juice", "Apples"],
+				result.Select(product => product.Name));
+		}
+
+		[Fact]
+		public void FilterAndSort_ByStorageLocation_StillRespectsSearch()
+		{
+			// Location sorting should not disable the existing live search.
+			var result = ProductListFilter.FilterAndSort(
+				Products,
+				"app",
+				ProductSortMode.StorageLocation);
+
+			Assert.Equal(
+				["Apple Juice", "Apples"],
 				result.Select(product => product.Name));
 		}
 
