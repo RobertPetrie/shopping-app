@@ -85,6 +85,33 @@ namespace ShoppingApp.Tests
 						products,
 						product => product.StorageLocationID == location.ID));
 
+				// Every sample product is ready for edit-form testing immediately;
+				// none of the seeded rows should open with blank lookup selections.
+				Assert.All(products, product =>
+				{
+					Assert.NotNull(product.ProductCategoryID);
+					Assert.NotNull(product.StorageLocationID);
+				});
+
+				// Bathroom Tissue is a useful manual-test example because both of
+				// its expected lookup values are obvious when the form opens.
+				var bathroomTissue = products.Single(
+					product => product.Name == "Bathroom Tissue");
+
+				var householdCategory = categories.Single(
+					category => category.Name == "Household / Non-Food");
+
+				var bathroomLocation = storageLocations.Single(
+					location => location.Name == "Bathroom");
+
+				Assert.Equal(
+					householdCategory.ID,
+					bathroomTissue.ProductCategoryID);
+
+				Assert.Equal(
+					bathroomLocation.ID,
+					bathroomTissue.StorageLocationID);
+
 				Assert.Equal(
 					12,
 					await connection.Table<ShoppingList>().CountAsync());

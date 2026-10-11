@@ -469,6 +469,28 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
+		/// Load one complete Product row for the edit form.
+		/// Returning null lets the caller handle a product deleted after navigation.
+		/// </summary>
+		public async Task<Product?> GetProductAsync(int productId)
+		{
+			if (productId <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(productId),
+					"Product ID must be greater than zero.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database
+				.Table<Product>()
+				.Where(product => product.ID == productId)
+				.FirstOrDefaultAsync()
+				.ConfigureAwait(false);
+		}
+
+		/// <summary>
 		/// Provide the form's duplicate-name check.
 		/// Keeping the current product's name or changing only its
 		/// capitalization is allowed.

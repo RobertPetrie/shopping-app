@@ -42,6 +42,8 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Changing a product's storage location persists after returning to the Products screen.
 - [ ] Existing products still open normally after the StorageLocationID migration.
 - [ ] Sample products include examples from every built-in storage location.
+- [ ] Opening the seeded Bathroom Tissue product preselects Household / Non-Food, shows Taxable = Yes, and preselects Bathroom.
+- [ ] Opening Product Add/Edit always gives Category and Storage Location dropdown choices after startup test data has finished loading.
 
 ## Shopping Lists
 

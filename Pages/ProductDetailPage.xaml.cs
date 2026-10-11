@@ -81,6 +81,13 @@ namespace shopping_app.Pages
 
 			try
 			{
+				// The development build may be replacing all data during startup.
+				// Wait for that work before reading the product or either lookup table.
+				if (Application.Current is App app)
+				{
+					await app.TestDataReady;
+				}
+
 				var services = Handler?.MauiContext?.Services
 					?? throw new InvalidOperationException(
 						"The page's app services are unavailable.");
@@ -88,12 +95,29 @@ namespace shopping_app.Pages
 				var database =
 					services.GetRequiredService<AppDatabase>();
 
-				// Both pickers use lookup tables so the form stays data-driven.
-				ProductCategoryPicker.ItemsSource =
-					await database.GetProductCategoriesAsync();
+				if (editingProductId is int productId)
+				{
+					// Reload the complete row from SQLite. This guarantees the picker
+					// selections use the current category and storage-location IDs,
+					// even if the navigation object was stale.
+					var currentProduct = await database.GetProductAsync(productId)
+						?? throw new KeyNotFoundException(
+							"This product no longer exists.");
 
-				StorageLocationPicker.ItemsSource =
-					await database.GetStorageLocationsAsync();
+					ProductNameEntry.Text = currentProduct.Name;
+					ProductDescriptionEditor.Text = currentProduct.Description;
+					editingProductCategoryId = currentProduct.ProductCategoryID;
+					editingStorageLocationId = currentProduct.StorageLocationID;
+				}
+
+				// Load both lookup lists every time the form is first shown.
+				// New products get choices; existing products also get their
+				// saved category and storage location selected below.
+				var categories = await database.GetProductCategoriesAsync();
+				var storageLocations = await database.GetStorageLocationsAsync();
+
+				ProductCategoryPicker.ItemsSource = categories;
+				StorageLocationPicker.ItemsSource = storageLocations;
 
 				lookupsLoaded = true;
 				SelectEditingLookups();

@@ -81,6 +81,39 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
+		public async Task GetProductAsync_ReturnsSavedCategoryAndStorageLocation()
+		{
+			// The edit form reloads the Product row before selecting its pickers,
+			// so this read must return both saved lookup IDs unchanged.
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var category = (await database.GetProductCategoriesAsync())
+					.Single(item => item.Name == "Household / Non-Food");
+
+				var location = (await database.GetStorageLocationsAsync())
+					.Single(item => item.Name == "Bathroom");
+
+				var saved = await database.AddProductAsync(
+					"Bathroom Tissue Test",
+					productCategoryId: category.ID,
+					storageLocationId: location.ID);
+
+				var loaded = await database.GetProductAsync(saved.ID);
+
+				Assert.NotNull(loaded);
+				Assert.Equal(category.ID, loaded.ProductCategoryID);
+				Assert.Equal(location.ID, loaded.StorageLocationID);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
 		public async Task GetStorageLocationsAsync_ReturnsBuiltInChoicesAlphabetically()
 		{
 			// The Storage Location picker relies on the built-in names being
