@@ -26,11 +26,6 @@ namespace shopping_app.Models
 		[Indexed]
 		public int? ProductCategoryID { get; set; }
 
-		// True means this product normally has sales tax applied.
-		// Category selection does not change this value automatically.
-		[NotNull]
-		public bool IsTaxable { get; set; } = false;
-
 		// Assigned by AddProductAsync immediately before insertion.
 		[NotNull]
 		public DateTime CreatedOn { get; set; }

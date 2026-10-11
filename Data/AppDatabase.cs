@@ -71,6 +71,29 @@ namespace shopping_app.Data
 					await newConnection.CreateTableAsync<ProductCategory>()
 						.ConfigureAwait(false);
 
+					int categoryTaxColumnExists =
+						await newConnection.ExecuteScalarAsync<int>(
+							"""
+                            SELECT COUNT(*)
+                            FROM pragma_table_info('ProductCategory')
+                            WHERE name = 'IsTaxable';
+                            """).ConfigureAwait(false);
+
+					if (categoryTaxColumnExists == 0)
+					{
+						// Older databases had categories without a tax flag.
+						// Add the flag first, then give the built-in categories
+						// the same defaults used by a brand-new database.
+						await newConnection.ExecuteAsync(
+							"""
+                            ALTER TABLE "ProductCategory"
+                            ADD COLUMN "IsTaxable" INTEGER NOT NULL DEFAULT 0;
+                            """).ConfigureAwait(false);
+
+						await ApplyBuiltInCategoryTaxDefaultsAsync(newConnection)
+							.ConfigureAwait(false);
+					}
+
 					await EnsureProductCategoriesAsync(newConnection)
 						.ConfigureAwait(false);
 
@@ -88,7 +111,7 @@ namespace shopping_app.Data
 
 					if (productTableExists > 0)
 					{
-						int taxableColumnExists =
+						int legacyTaxColumnExists =
 							await newConnection.ExecuteScalarAsync<int>(
 								"""
                                 SELECT COUNT(*)
@@ -96,12 +119,15 @@ namespace shopping_app.Data
                                 WHERE name = 'IsTaxable';
                                 """).ConfigureAwait(false);
 
-						if (taxableColumnExists == 0)
+						if (legacyTaxColumnExists > 0)
 						{
+							// Taxability now belongs to ProductCategory.
+							// This removes the short-lived Product column while
+							// preserving every Product row.
 							await newConnection.ExecuteAsync(
 								"""
                                 ALTER TABLE "Product"
-                                ADD COLUMN "IsTaxable" INTEGER NOT NULL DEFAULT 0;
+                                DROP COLUMN "IsTaxable";
                                 """).ConfigureAwait(false);
 						}
 
@@ -188,24 +214,47 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
+		/// Built-in category defaults. Taxability lives here rather than Product.
+		/// </summary>
+		private static readonly (string Name, int SortOrder, bool IsTaxable)[]
+			BuiltInProductCategories =
+			[
+				("Basic Grocery", 1, false),
+				("Snack Food", 2, true),
+				("Candy / Confectionery", 3, true),
+				("Carbonated Beverage", 4, true),
+				("Household / Non-Food", 5, true),
+				("Prepared Food", 6, true),
+				("Other", 7, false)
+			];
+
+		/// <summary>
+		/// Apply tax defaults only during the one-time schema migration.
+		/// Later category edits will not be overwritten when the app starts.
+		/// </summary>
+		private static async Task ApplyBuiltInCategoryTaxDefaultsAsync(
+			SQLiteAsyncConnection database)
+		{
+			foreach (var category in BuiltInProductCategories)
+			{
+				await database.ExecuteAsync(
+					"""
+                    UPDATE "ProductCategory"
+                    SET "IsTaxable" = ?
+                    WHERE "Name" = ?;
+                    """,
+					category.IsTaxable,
+					category.Name).ConfigureAwait(false);
+			}
+		}
+
+		/// <summary>
 		/// Insert any missing built-in categories without changing existing rows.
-		/// Categories classify products only; they never change IsTaxable.
 		/// </summary>
 		private static async Task EnsureProductCategoriesAsync(
 			SQLiteAsyncConnection database)
 		{
-			var categories = new (string Name, int SortOrder)[]
-			{
-				("Basic Grocery", 1),
-				("Snack Food", 2),
-				("Candy / Confectionery", 3),
-				("Carbonated Beverage", 4),
-				("Household / Non-Food", 5),
-				("Prepared Food", 6),
-				("Other", 7)
-			};
-
-			foreach (var category in categories)
+			foreach (var category in BuiltInProductCategories)
 			{
 				var existing = await database
 					.Table<ProductCategory>()
@@ -218,7 +267,8 @@ namespace shopping_app.Data
 					await database.InsertAsync(new ProductCategory
 					{
 						Name = category.Name,
-						SortOrder = category.SortOrder
+						SortOrder = category.SortOrder,
+						IsTaxable = category.IsTaxable
 					}).ConfigureAwait(false);
 				}
 			}
@@ -342,7 +392,6 @@ namespace shopping_app.Data
 		public async Task<Product> AddProductAsync(
 			string name,
 			string? description = null,
-			bool isTaxable = false,
 			int? productCategoryId = null)
 		{
 			if (string.IsNullOrWhiteSpace(name))
@@ -358,7 +407,6 @@ namespace shopping_app.Data
 				Name = name.Trim(),
 				Description = description,
 				ProductCategoryID = productCategoryId,
-				IsTaxable = isTaxable,
 				CreatedOn = DateTime.UtcNow,
 				ModifiedOn = null
 			};
@@ -387,7 +435,6 @@ namespace shopping_app.Data
 			int productId,
 			string name,
 			string? description = null,
-			bool isTaxable = false,
 			int? productCategoryId = null)
 		{
 			if (productId <= 0)
@@ -428,14 +475,12 @@ namespace shopping_app.Data
                     SET "Name" = ?,
                         "Description" = ?,
                         "ProductCategoryID" = ?,
-                        "IsTaxable" = ?,
                         "ModifiedOn" = ?
                     WHERE "ID" = ?;
                     """,
 					trimmedName,
 					description,
 					productCategoryId,
-					isTaxable,
 					DateTime.UtcNow.Ticks,
 					productId);
 

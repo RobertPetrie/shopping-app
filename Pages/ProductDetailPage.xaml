@@ -86,25 +86,6 @@
                     TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}" />
             </VerticalStackLayout>
 
-            <!-- Tax remains a separate Yes/No choice. -->
-            <VerticalStackLayout Spacing="6">
-                <Label
-                    Text="Taxable?"
-                    FontSize="16"
-                    FontAttributes="Bold" />
-
-                <Button
-                    x:Name="TaxableButton"
-                    AutomationId="TaxableButton"
-                    StyleClass="FilledTonalButton"
-                    Text="No"
-                    WidthRequest="110"
-                    HorizontalOptions="Start"
-                    Clicked="OnTaxableClicked"
-                    ToolTipProperties.Text="Toggle whether this product is taxable"
-                    SemanticProperties.Description="Taxable: No. Tap to change." />
-            </VerticalStackLayout>
-
             <Label
                 Text="* Required"
                 FontSize="12"

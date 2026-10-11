@@ -7,87 +7,7 @@ namespace ShoppingApp.Tests
 	public class ProductDatabaseTests
 	{
 		[Fact]
-		public async Task AddProductAsync_WhenTaxableIsTrue_StoresTrue()
-		{
-			string databasePath = CreateTemporaryDatabasePath();
-			var database = new AppDatabase(databasePath);
-
-			try
-			{
-				var product = await database.AddProductAsync(
-					"Taxable Snack",
-					"A test snack.",
-					isTaxable: true);
-
-				var connection = await database.GetConnectionAsync();
-				var saved = await connection
-					.Table<Product>()
-					.Where(item => item.ID == product.ID)
-					.FirstAsync();
-
-				Assert.True(saved.IsTaxable);
-			}
-			finally
-			{
-				await CloseAndDeleteDatabaseAsync(database);
-			}
-		}
-
-		[Fact]
-		public async Task AddProductAsync_WithoutTaxChoice_DefaultsToFalse()
-		{
-			string databasePath = CreateTemporaryDatabasePath();
-			var database = new AppDatabase(databasePath);
-
-			try
-			{
-				var product = await database.AddProductAsync(
-					"Basic Grocery",
-					"A test grocery item.");
-
-				Assert.False(product.IsTaxable);
-			}
-			finally
-			{
-				await CloseAndDeleteDatabaseAsync(database);
-			}
-		}
-
-		[Fact]
-		public async Task UpdateProductAsync_ChangesTaxableValue()
-		{
-			string databasePath = CreateTemporaryDatabasePath();
-			var database = new AppDatabase(databasePath);
-
-			try
-			{
-				var product = await database.AddProductAsync(
-					"Changing Product",
-					"Starts as not taxable.");
-
-				await database.UpdateProductAsync(
-					product.ID,
-					product.Name,
-					product.Description,
-					isTaxable: true);
-
-				var connection = await database.GetConnectionAsync();
-				var saved = await connection
-					.Table<Product>()
-					.Where(item => item.ID == product.ID)
-					.FirstAsync();
-
-				Assert.True(saved.IsTaxable);
-				Assert.NotNull(saved.ModifiedOn);
-			}
-			finally
-			{
-				await CloseAndDeleteDatabaseAsync(database);
-			}
-		}
-
-		[Fact]
-		public async Task GetProductCategoriesAsync_ReturnsBuiltInChoicesInOrder()
+		public async Task GetProductCategoriesAsync_ReturnsBuiltInChoicesAndTaxSettings()
 		{
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
@@ -98,15 +18,16 @@ namespace ShoppingApp.Tests
 
 				Assert.Equal(
 					[
-						"Basic Grocery",
-						"Snack Food",
-						"Candy / Confectionery",
-						"Carbonated Beverage",
-						"Household / Non-Food",
-						"Prepared Food",
-						"Other"
+						("Basic Grocery", false),
+						("Snack Food", true),
+						("Candy / Confectionery", true),
+						("Carbonated Beverage", true),
+						("Household / Non-Food", true),
+						("Prepared Food", true),
+						("Other", false)
 					],
-					categories.Select(category => category.Name));
+					categories.Select(category =>
+						(category.Name, category.IsTaxable)));
 			}
 			finally
 			{
@@ -138,7 +59,6 @@ namespace ShoppingApp.Tests
 					product.ID,
 					product.Name,
 					product.Description,
-					product.IsTaxable,
 					snack.ID);
 
 				var connection = await database.GetConnectionAsync();
@@ -148,6 +68,7 @@ namespace ShoppingApp.Tests
 					.FirstAsync();
 
 				Assert.Equal(snack.ID, saved.ProductCategoryID);
+				Assert.NotNull(saved.ModifiedOn);
 			}
 			finally
 			{
@@ -175,11 +96,37 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
-		public async Task GetConnectionAsync_LegacyProductTable_AddsTaxColumn()
+		public async Task NewDatabase_ProductTableDoesNotContainTaxColumn()
+		{
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var connection = await database.GetConnectionAsync();
+
+				int taxColumnCount =
+					await connection.ExecuteScalarAsync<int>(
+						"""
+                        SELECT COUNT(*)
+                        FROM pragma_table_info('Product')
+                        WHERE name = 'IsTaxable';
+                        """);
+
+				Assert.Equal(0, taxColumnCount);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
+		public async Task GetConnectionAsync_LegacyProductTable_MovesTaxOutOfProduct()
 		{
 			string databasePath = CreateTemporaryDatabasePath();
 
-			// Build the old Product schema exactly without IsTaxable.
+			// This reproduces the short-lived schema where Product owned IsTaxable.
 			var legacyConnection = new SQLiteAsyncConnection(
 				databasePath,
 				SQLiteOpenFlags.ReadWrite |
@@ -195,6 +142,8 @@ namespace ShoppingApp.Tests
                     "Name" VARCHAR NOT NULL UNIQUE,
                     "Description" VARCHAR,
                     "ImagePath" VARCHAR,
+                    "ProductCategoryID" INTEGER,
+                    "IsTaxable" INTEGER NOT NULL DEFAULT 0,
                     "CreatedOn" BIGINT NOT NULL,
                     "ModifiedOn" BIGINT
                 );
@@ -202,10 +151,11 @@ namespace ShoppingApp.Tests
 
 			await legacyConnection.ExecuteAsync(
 				"""
-                INSERT INTO "Product" ("Name", "CreatedOn")
-                VALUES (?, ?);
+                INSERT INTO "Product" ("Name", "IsTaxable", "CreatedOn")
+                VALUES (?, ?, ?);
                 """,
 				"Legacy Milk",
+				1,
 				DateTime.UtcNow.Ticks);
 
 			await legacyConnection.CloseAsync();
@@ -224,23 +174,61 @@ namespace ShoppingApp.Tests
                         WHERE name = 'IsTaxable';
                         """);
 
-				int categoryColumnCount =
-					await connection.ExecuteScalarAsync<int>(
-						"""
-                        SELECT COUNT(*)
-                        FROM pragma_table_info('Product')
-                        WHERE name = 'ProductCategoryID';
-                        """);
-
 				var legacyProduct = await connection
 					.Table<Product>()
 					.Where(item => item.Name == "Legacy Milk")
 					.FirstAsync();
 
-				Assert.Equal(1, taxColumnCount);
-				Assert.Equal(1, categoryColumnCount);
-				Assert.False(legacyProduct.IsTaxable);
+				Assert.Equal(0, taxColumnCount);
 				Assert.Null(legacyProduct.ProductCategoryID);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
+		public async Task GetConnectionAsync_LegacyCategoryTable_AddsTaxColumn()
+		{
+			string databasePath = CreateTemporaryDatabasePath();
+
+			var legacyConnection = new SQLiteAsyncConnection(
+				databasePath,
+				SQLiteOpenFlags.ReadWrite |
+				SQLiteOpenFlags.Create |
+				SQLiteOpenFlags.FullMutex,
+				storeDateTimeAsTicks: true);
+
+			await legacyConnection.ExecuteAsync(
+				"""
+                CREATE TABLE "ProductCategory"
+                (
+                    "ID" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    "Name" VARCHAR NOT NULL UNIQUE,
+                    "SortOrder" INTEGER NOT NULL
+                );
+                """);
+
+			await legacyConnection.ExecuteAsync(
+				"""
+                INSERT INTO "ProductCategory" ("Name", "SortOrder")
+                VALUES ("Basic Grocery", 1), ("Snack Food", 2);
+                """);
+
+			await legacyConnection.CloseAsync();
+
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var categories = await database.GetProductCategoriesAsync();
+
+				Assert.False(categories.Single(
+					category => category.Name == "Basic Grocery").IsTaxable);
+
+				Assert.True(categories.Single(
+					category => category.Name == "Snack Food").IsTaxable);
 			}
 			finally
 			{

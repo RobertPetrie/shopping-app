@@ -22,16 +22,14 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Product name spell checking appears when supported by the operating system.
 - [ ] Product description spell checking appears when supported by the operating system.
 - [ ] Product name and description text prediction behave normally on supported devices.
-- [ ] New Product form shows Taxable? with a Yes/No button and defaults to No.
-- [ ] Tapping the Taxable button switches cleanly between Yes and No.
-- [ ] Saving a taxable product preserves Yes when the product is edited again.
-- [ ] Saving a non-taxable product preserves No when the product is edited again.
-- [ ] Existing products still open normally after the IsTaxable database migration.
 - [ ] Product Category picker shows all seven built-in categories in the expected order.
 - [ ] A new product cannot be saved until the user chooses a category.
-- [ ] Choosing a category does not change the Taxable Yes/No button.
+- [ ] The Product form no longer shows a product-level Taxable Yes/No button.
 - [ ] Saving a product preserves the selected category when it is edited again.
 - [ ] Editing an older uncategorized product lets the user choose and save a category.
+- [ ] Basic Grocery and Other categories are stored as non-taxable.
+- [ ] Snack Food, Candy / Confectionery, Carbonated Beverage, Household / Non-Food, and Prepared Food are stored as taxable.
+- [ ] An existing database upgrades without losing Product or ProductCategory records.
 
 ## Shopping Lists
 

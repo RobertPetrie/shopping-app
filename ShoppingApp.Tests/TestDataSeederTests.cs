@@ -26,7 +26,8 @@ namespace ShoppingApp.Tests
 					7,
 					await connection.Table<ProductCategory>().CountAsync());
 
-				// Sample products include both tax values and explicit categories.
+				// Taxability belongs to the category, while products store only
+				// the category they were assigned.
 				var bananas = await connection
 					.Table<Product>()
 					.Where(product => product.Name == "Disco Bananas")
@@ -36,9 +37,6 @@ namespace ShoppingApp.Tests
 					.Table<Product>()
 					.Where(product => product.Name == "Royal Couch Potato Chips")
 					.FirstAsync();
-
-				Assert.False(bananas.IsTaxable);
-				Assert.True(chips.IsTaxable);
 
 				var basicGrocery = await connection
 					.Table<ProductCategory>()
@@ -50,6 +48,8 @@ namespace ShoppingApp.Tests
 					.Where(category => category.Name == "Snack Food")
 					.FirstAsync();
 
+				Assert.False(basicGrocery.IsTaxable);
+				Assert.True(snackFood.IsTaxable);
 				Assert.Equal(basicGrocery.ID, bananas.ProductCategoryID);
 				Assert.Equal(snackFood.ID, chips.ProductCategoryID);
 

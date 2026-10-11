@@ -32,91 +32,67 @@ namespace shopping_app.Data
 			SQLite.SQLiteAsyncConnection connection)
 		{
 			var testProducts =
-				new (
-					string Name,
-					string Description,
-					bool IsTaxable,
-					string CategoryName)[]
+				new (string Name, string Description, string CategoryName)[]
 			{
 				("Disco Bananas",
 					"Excellent dance partners. Slightly slippery.",
-					false,
 					"Basic Grocery"),
 				("Ninja Noodles",
 					"They disappear from your bowl without a trace.",
-					false,
 					"Basic Grocery"),
 				("Dragon Breath Hot Sauce",
 					"For tacos that need a dramatic entrance.",
-					false,
 					"Basic Grocery"),
 				("Unicorn Breakfast Cereal",
 					"A magical start to an otherwise ordinary Tuesday.",
-					false,
 					"Basic Grocery"),
 				("Emergency Chocolate",
 					"Break open in case of Monday.",
-					true,
 					"Candy / Confectionery"),
 				("Space Pirate Popcorn",
 					"The official snack of questionable space missions.",
-					true,
 					"Snack Food"),
 				("Sneaky Pickles",
 					"Somehow always missing when you want a sandwich.",
-					false,
 					"Basic Grocery"),
 				("Superhero Spinach",
 					"Cape sold separately.",
-					false,
 					"Basic Grocery"),
 				("Midnight Taco Shells",
 					"Because good ideas happen after bedtime.",
-					false,
 					"Basic Grocery"),
 				("Grumpy Cat Coffee",
 					"Do not speak to the mug until it is empty.",
-					false,
 					"Basic Grocery"),
 				("Moon Cheese",
 					"Suspiciously delicious. Probably from Earth.",
-					false,
 					"Basic Grocery"),
 				("Rainbow Carrots",
 					"A vegetable drawer with main-character energy.",
-					false,
 					"Basic Grocery"),
 				("Zombie Survival Beans",
 					"A pantry essential for unexpected visitors.",
-					false,
 					"Basic Grocery"),
 				("Fancy Pants Pasta",
 					"Dress code: extra parmesan.",
-					false,
 					"Basic Grocery"),
 				("Happy Camper Marshmallows",
 					"Ready for campfires and terrible ghost stories.",
-					true,
 					"Candy / Confectionery"),
 				("Rocket Fuel Granola",
 					"Launch your morning one crunchy bite at a time.",
-					false,
 					"Basic Grocery"),
 				("Secret Agent Apples",
 					"Their mission: infiltrate your lunchbox.",
-					false,
 					"Basic Grocery"),
 				("Pirate Treasure Cookies",
 					"Contains chocolate chips, not actual gold.",
-					true,
 					"Snack Food"),
 				("Royal Couch Potato Chips",
 					"Best served during one more episode.",
-					true,
 					"Snack Food"),
 				("Victory Ice Cream",
 					"For celebrating achievements of any size.",
-					false,
 					"Basic Grocery")
 			};
 
@@ -129,7 +105,6 @@ namespace shopping_app.Data
 					.Where(value => value.Name == item.CategoryName)
 					.FirstAsync();
 
-				// Skip an existing product with the same name.
 				var existingProduct = await connection
 					.Table<Product>()
 					.Where(product => product.Name == item.Name)
@@ -137,20 +112,17 @@ namespace shopping_app.Data
 
 				if (existingProduct is not null)
 				{
-					// Backfill tax/category only on untouched sample rows.
-					// User-edited samples keep the choices the user made.
+					// Backfill category only on untouched sample rows.
+					// User-edited samples keep the category the user chose.
 					if (existingProduct.ModifiedOn is null
-						&& (existingProduct.IsTaxable != item.IsTaxable
-							|| existingProduct.ProductCategoryID != category.ID))
+						&& existingProduct.ProductCategoryID != category.ID)
 					{
 						await connection.ExecuteAsync(
 							"""
                             UPDATE "Product"
-                            SET "IsTaxable" = ?,
-                                "ProductCategoryID" = ?
+                            SET "ProductCategoryID" = ?
                             WHERE "ID" = ?;
                             """,
-							item.IsTaxable,
 							category.ID,
 							existingProduct.ID);
 					}
@@ -161,7 +133,6 @@ namespace shopping_app.Data
 				await database.AddProductAsync(
 					item.Name,
 					item.Description,
-					item.IsTaxable,
 					category.ID);
 
 				createdCount++;

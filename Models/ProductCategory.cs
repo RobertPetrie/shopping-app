@@ -17,6 +17,10 @@ namespace shopping_app.Models
 		[NotNull]
 		public int SortOrder { get; set; }
 
+		// Every product in this category shares this tax setting.
+		[NotNull]
+		public bool IsTaxable { get; set; }
+
 		// Picker controls display the category name automatically.
 		public override string ToString() => Name;
 	}

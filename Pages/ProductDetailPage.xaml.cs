@@ -13,9 +13,6 @@ namespace shopping_app.Pages
 	{
 		private bool isBusy;
 
-		// New products start as not taxable until the user chooses Yes.
-		private bool isTaxable;
-
 		// Keep the saved category ID until the picker data has loaded.
 		private int? editingProductCategoryId;
 
@@ -31,7 +28,6 @@ namespace shopping_app.Pages
 		public ProductDetailPage()
 		{
 			InitializeComponent();
-			UpdateTaxableButton();
 		}
 
 		/// <summary>
@@ -49,8 +45,6 @@ namespace shopping_app.Pages
 				ProductNameEntry.Text = product.Name;
 				ProductDescriptionEditor.Text = product.Description;
 				editingProductCategoryId = product.ProductCategoryID;
-				isTaxable = product.IsTaxable;
-				UpdateTaxableButton();
 				SelectEditingCategory();
 
 				ClearNameError();
@@ -199,7 +193,6 @@ namespace shopping_app.Pages
 							id,
 							name,
 							description,
-							isTaxable,
 							selectedCategory.ID);
 
 						savedProductId = id;
@@ -210,7 +203,6 @@ namespace shopping_app.Pages
 						var product = await database.AddProductAsync(
 							name,
 							description,
-							isTaxable,
 							selectedCategory.ID);
 
 						savedProductId = product.ID;
@@ -314,7 +306,8 @@ namespace shopping_app.Pages
 			return Shell.Current.GoToAsync("..");
 		}
 
-		// Changing category never changes the separate taxable choice.
+		// Category selection determines the product's tax treatment through
+		// ProductCategory.IsTaxable; the product itself stores only the category ID.
 		private void OnCategoryChanged(object? sender, EventArgs e)
 		{
 			ClearCategoryError();
@@ -332,28 +325,6 @@ namespace shopping_app.Pages
 		{
 			CategoryValidationLabel.IsVisible = false;
 			CategoryValidationLabel.Text = string.Empty;
-		}
-
-		// Toggle between the two tax choices without opening another control.
-		private void OnTaxableClicked(object? sender, EventArgs e)
-		{
-			if (isBusy || savedProductId is not null)
-			{
-				return;
-			}
-
-			isTaxable = !isTaxable;
-			UpdateTaxableButton();
-		}
-
-		private void UpdateTaxableButton()
-		{
-			string answer = isTaxable ? "Yes" : "No";
-			TaxableButton.Text = answer;
-
-			SemanticProperties.SetDescription(
-				TaxableButton,
-				$"Taxable: {answer}. Tap to change.");
 		}
 
 		// Move to the description with the keyboard's Next action.
@@ -406,9 +377,6 @@ namespace shopping_app.Pages
 				!busy && savedProductId is null;
 
 			ProductCategoryPicker.IsEnabled =
-				!busy && savedProductId is null;
-
-			TaxableButton.IsEnabled =
 				!busy && savedProductId is null;
 
 			SavingIndicator.IsVisible = busy;
