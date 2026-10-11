@@ -28,6 +28,16 @@
                 Route="Products"
                 ContentTemplate="{DataTemplate local:MainPage}" />
         </Tab>
+
+        <!-- Settings uses the familiar gear icon found in most apps. -->
+        <Tab
+            Icon="tab_settings.png">
+
+            <ShellContent
+                Title="Settings"
+                Route="Settings"
+                ContentTemplate="{DataTemplate pages:SettingsPage}" />
+        </Tab>
     </TabBar>
 
 </Shell>

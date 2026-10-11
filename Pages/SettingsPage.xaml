@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="shopping_app.Pages.SettingsPage"
+    Title="Settings">
+
+    <!-- Keep the first Settings screen simple; future settings such as
+         theming can be added here without changing the tab structure. -->
+    <ScrollView>
+        <VerticalStackLayout
+            Padding="24,20"
+            Spacing="12"
+            MaximumWidthRequest="700"
+            HorizontalOptions="Fill">
+
+            <Label
+                Text="Settings"
+                FontSize="30"
+                FontAttributes="Bold" />
+
+            <Label
+                Text="App settings will appear here."
+                FontSize="16"
+                TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

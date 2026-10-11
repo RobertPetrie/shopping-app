@@ -88,7 +88,10 @@ Automated tests should still be added whenever a feature can be tested reliably 
 
 ## Navigation and Tabs
 
-- [ ] Switching between Shopping Lists and Products works repeatedly.
+- [ ] Shopping Lists, Products, and Settings all appear as separate tabs.
+- [ ] The Settings tab uses a recognizable gear icon.
+- [ ] Tapping Settings opens the Settings page without errors.
+- [ ] Switching between Shopping Lists, Products, and Settings works repeatedly.
 - [ ] Returning to a tab refreshes its data when needed.
 - [ ] Bottom tab icons and labels display correctly.
 - [ ] No duplicate pages or unexpected navigation stack entries appear after repeated use.
