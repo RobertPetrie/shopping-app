@@ -9,6 +9,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task GetProductCategoriesAsync_ReturnsBuiltInChoicesAndTaxSettings()
 		{
+			// A fresh database should always expose the seven built-in categories
+			// with the tax settings the Product form depends on.
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
@@ -38,6 +40,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task AddAndUpdateProductAsync_PersistsChosenCategory()
 		{
+			// Saving a product should keep its chosen category, and editing the
+			// product should replace that category without changing the product ID.
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
@@ -79,6 +83,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task GetStorageLocationsAsync_ReturnsBuiltInChoicesAlphabetically()
 		{
+			// The Storage Location picker relies on the built-in names being
+			// returned in predictable alphabetical order.
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
@@ -109,6 +115,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task AddAndUpdateProductAsync_PersistsStorageLocation()
 		{
+			// Saving and then editing a product should persist the selected
+			// home storage location in the Product table.
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
@@ -155,6 +163,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task AddProductAsync_WithMissingStorageLocation_RejectsReference()
 		{
+			// A product must not be saved with a storage-location ID that does
+			// not exist in the lookup table.
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
@@ -174,6 +184,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task AddProductAsync_WithoutStorageLocation_AllowsNull()
 		{
+			// Storage location is optional, so a product without one should
+			// save successfully and keep a null reference.
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
@@ -193,6 +205,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task AddProductAsync_WithMissingCategory_RejectsReference()
 		{
+			// A product must not be saved with a category ID that no longer
+			// exists in the ProductCategory table.
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
@@ -212,6 +226,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task NewDatabase_ProductTableDoesNotContainTaxColumn()
 		{
+			// Taxability now belongs to ProductCategory, so a brand-new Product
+			// table must not recreate the old IsTaxable column.
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
@@ -238,6 +254,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task GetConnectionAsync_LegacyProductTable_MovesTaxOutOfProduct()
 		{
+			// Opening an older database should remove the obsolete Product tax
+			// column while keeping the existing product and adding new lookup fields.
 			string databasePath = CreateTemporaryDatabasePath();
 
 			// This reproduces the short-lived schema where Product owned IsTaxable.
@@ -315,6 +333,8 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public async Task GetConnectionAsync_LegacyCategoryTable_AddsTaxColumn()
 		{
+			// Opening a category table from the older schema should add IsTaxable
+			// safely and apply the intended defaults to existing built-in rows.
 			string databasePath = CreateTemporaryDatabasePath();
 
 			var legacyConnection = new SQLiteAsyncConnection(
@@ -376,6 +396,8 @@ namespace ShoppingApp.Tests
 
 		private static string CreateTemporaryDatabasePath()
 		{
+			// Give every database test its own file so one test cannot leak
+			// records or schema changes into another test.
 			return Path.Combine(
 				Path.GetTempPath(),
 				$"shopping-app-product-tests-{Guid.NewGuid():N}.db3");
@@ -384,6 +406,8 @@ namespace ShoppingApp.Tests
 		private static async Task CloseAndDeleteDatabaseAsync(
 			AppDatabase database)
 		{
+			// Close SQLite first, then remove the database and any temporary
+			// sidecar files it created during the test.
 			try
 			{
 				var connection = await database.GetConnectionAsync();

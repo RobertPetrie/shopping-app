@@ -7,14 +7,11 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public void ShoppingDate_WhenSet_StoresDateAsIsoString()
 		{
-			// Arrange
+			// Setting the friendly DateOnly property should store a stable ISO
+			// date string that SQLite can persist consistently.
 			var shoppingList = new ShoppingList();
 			var date = new DateOnly(2026, 10, 3);
-
-			// Act
 			shoppingList.ShoppingDate = date;
-
-			// Assert
 			Assert.Equal("2026-10-03", shoppingList.ShoppingDateStorage);
 		}
 
@@ -22,16 +19,14 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public void ShoppingDate_WhenSet_CanBeReadBack()
 		{
-			// Arrange
+			// A date string loaded from SQLite should be converted back into the
+			// DateOnly value used by the rest of the app.
 			var shoppingList = new ShoppingList
 			{
 				ShoppingDateStorage = "2026-10-03"
 			};
 
-			// Act
 			DateOnly? result = shoppingList.ShoppingDate;
-
-			// Assert
 			Assert.Equal(new DateOnly(2026, 10, 3), result);
 		}
 
@@ -39,13 +34,10 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public void ShoppingDate_WhenNull_StoresNull()
 		{
-			// Arrange
+			// Shopping date is optional, so assigning null should leave both the
+			// public property and its SQLite storage value empty.
 			var shoppingList = new ShoppingList();
-
-			// Act
 			shoppingList.ShoppingDate = null;
-
-			// Assert
 			Assert.Null(shoppingList.ShoppingDateStorage);
 			Assert.Null(shoppingList.ShoppingDate);
 		}
@@ -54,13 +46,10 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public void TotalCost_WhenSet_StoresValueAsCents()
 		{
-			// Arrange
+			// Totals are stored as integer cents so currency values remain exact
+			// when a shopping list is written to SQLite.
 			var shoppingList = new ShoppingList();
-
-			// Act
 			shoppingList.TotalCost = 12.34m;
-
-			// Assert
 			Assert.Equal(1234L, shoppingList.TotalCostInCents);
 		}
 
@@ -68,16 +57,14 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public void TotalCost_WhenStoredAsCents_ReturnsDecimalValue()
 		{
-			// Arrange
+			// A stored integer-cent total should be exposed as the matching
+			// decimal currency amount when the app reads it.
 			var shoppingList = new ShoppingList
 			{
 				TotalCostInCents = 1234
 			};
 
-			// Act
 			decimal? result = shoppingList.TotalCost;
-
-			// Assert
 			Assert.Equal(12.34m, result);
 		}
 
@@ -85,13 +72,10 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public void TotalCost_WhenNull_StoresNull()
 		{
-			// Arrange
+			// A list can be unfinished and have no total yet, so null must stay
+			// null in both the app-facing property and SQLite storage value.
 			var shoppingList = new ShoppingList();
-
-			// Act
 			shoppingList.TotalCost = null;
-
-			// Assert
 			Assert.Null(shoppingList.TotalCostInCents);
 			Assert.Null(shoppingList.TotalCost);
 		}
@@ -100,13 +84,10 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public void TotalCost_WithMoreThanTwoDecimalPlaces_ThrowsArgumentException()
 		{
-			// Arrange
+			// Fractions of a cent cannot be stored exactly, so totals with more
+			// than two decimal places should be rejected.
 			var shoppingList = new ShoppingList();
-
-			// Act
 			Action act = () => shoppingList.TotalCost = 12.345m;
-
-			// Assert
 			Assert.Throws<ArgumentException>(act);
 		}
 
@@ -114,10 +95,9 @@ namespace ShoppingApp.Tests
 		[Fact]
 		public void PickedUp_WhenShoppingListCreated_DefaultsToFalse()
 		{
-			// Arrange / Act
+			// A newly created shopping list should start pending until the user
+			// explicitly marks the trip as picked up.
 			var shoppingList = new ShoppingList();
-
-			// Assert
 			Assert.False(shoppingList.PickedUp);
 		}
 
