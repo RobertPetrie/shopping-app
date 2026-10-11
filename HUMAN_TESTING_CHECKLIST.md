@@ -14,6 +14,7 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] A → Z sorting works.
 - [ ] Z → A sorting works.
 - [ ] Search and sorting work together.
+- [ ] Add Product button opens the product form without a "Product Lookups" error.
 - [ ] Add Product button opens the product form.
 - [ ] On a new Product form, Category opens with all seven category choices available for selection.
 - [ ] On a new Product form, Storage Location opens with all nine storage-location choices available for selection.

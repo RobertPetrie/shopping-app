@@ -25,6 +25,10 @@ namespace shopping_app
 			// GetConnectionAsync, rather than during app startup.
 			builder.Services.AddSingleton<AppDatabase>();
 
+			// Shell creates ProductDetailPage through the service provider so the
+			// database is available before OnAppearing runs.
+			builder.Services.AddTransient<Pages.ProductDetailPage>();
+
 #if DEBUG
 			builder.Logging.AddDebug();
 #endif

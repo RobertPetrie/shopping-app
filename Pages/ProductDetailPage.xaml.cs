@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using shopping_app.Data;
 using shopping_app.Logic;
 using shopping_app.Models;
@@ -12,6 +11,7 @@ namespace shopping_app.Pages
 	/// </summary>
 	public partial class ProductDetailPage : ContentPage, IQueryAttributable
 	{
+		private readonly AppDatabase database;
 		private bool isBusy;
 
 		// Keep saved lookup IDs until the picker data has loaded.
@@ -32,8 +32,14 @@ namespace shopping_app.Pages
 		// Retrying must not insert again or repeat the update.
 		private int? savedProductId;
 
-		public ProductDetailPage()
+		public ProductDetailPage(AppDatabase database)
 		{
+			// Receive the shared database directly from MAUI dependency injection.
+			// This avoids relying on Handler.MauiContext during OnAppearing, because
+			// the page handler may not exist yet at that point in the lifecycle.
+			this.database = database
+				?? throw new ArgumentNullException(nameof(database));
+
 			InitializeComponent();
 			UpdateTaxableStatus(null);
 		}
@@ -94,12 +100,6 @@ namespace shopping_app.Pages
 					await app.TestDataReady;
 				}
 
-				var services = Handler?.MauiContext?.Services
-					?? throw new InvalidOperationException(
-						"The page's app services are unavailable.");
-
-				var database =
-					services.GetRequiredService<AppDatabase>();
 
 				if (editingProductId is int productId)
 				{
@@ -222,12 +222,6 @@ namespace shopping_app.Pages
 				// If an earlier save succeeded, only retry navigation.
 				if (savedProductId is null)
 				{
-					var services = Handler?.MauiContext?.Services
-						?? throw new InvalidOperationException(
-							"The page's app services are unavailable.");
-
-					var database =
-						services.GetRequiredService<AppDatabase>();
 
 					// Exclude this product when editing so its existing
 					// name does not count as a duplicate of itself.
