@@ -3,14 +3,19 @@ using shopping_app.Models;
 namespace shopping_app.Data
 {
 	/// <summary>
-	/// Adds friendly sample records while the app is being developed.
-	/// Existing sample records are skipped so restarting the app is safe.
+	/// Replaces all existing app data with a clean, predictable sample set
+	/// while the app is being developed.
 	/// </summary>
 	public static class TestDataSeeder
 	{
-		public static async Task SeedAsync(AppDatabase database)
+		public static async Task ResetAndSeedAsync(AppDatabase database)
 		{
 			ArgumentNullException.ThrowIfNull(database);
+
+			// The development startup flag intentionally makes each launch
+			// deterministic by removing any products, lists, or lookup edits
+			// left over from the previous manual-testing session.
+			await database.ResetAllDataForDevelopmentAsync();
 
 			var connection = await database.GetConnectionAsync();
 
@@ -23,7 +28,7 @@ namespace shopping_app.Data
 				connection);
 
 			System.Diagnostics.Debug.WriteLine(
-				$"Test data: created {productCount} products and "
+				$"Test data reset: created {productCount} products and "
 					+ $"{shoppingListCount} shopping lists.");
 		}
 
@@ -166,33 +171,6 @@ namespace shopping_app.Data
 					.Where(value => value.Name == item.StorageLocationName)
 					.FirstAsync();
 
-				var existingProduct = await connection
-					.Table<Product>()
-					.Where(product => product.Name == item.Name)
-					.FirstOrDefaultAsync();
-
-				if (existingProduct is not null)
-				{
-					// Backfill lookup values only on untouched sample rows.
-					// User-edited samples keep the choices the user made.
-					if (existingProduct.ModifiedOn is null
-						&& (existingProduct.ProductCategoryID != category.ID
-							|| existingProduct.StorageLocationID != storageLocation.ID))
-					{
-						await connection.ExecuteAsync(
-							"""
-                            UPDATE "Product"
-                            SET "ProductCategoryID" = ?,
-                                "StorageLocationID" = ?
-                            WHERE "ID" = ?;
-                            """,
-							category.ID,
-							storageLocation.ID,
-							existingProduct.ID);
-					}
-
-					continue;
-				}
 
 				await database.AddProductAsync(
 					item.Name,
@@ -233,19 +211,6 @@ namespace shopping_app.Data
 
 			foreach (var item in testShoppingLists)
 			{
-				string dateStorage = item.Date.ToString("yyyy-MM-dd");
-
-				// The sample data uses one list per date. If that date already
-				// exists, leave the user's existing record alone.
-				var existingList = await connection
-					.Table<ShoppingList>()
-					.Where(list => list.ShoppingDateStorage == dateStorage)
-					.FirstOrDefaultAsync();
-
-				if (existingList is not null)
-				{
-					continue;
-				}
 
 				await database.AddShoppingListAsync(
 					item.Date,

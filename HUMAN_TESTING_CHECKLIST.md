@@ -66,11 +66,13 @@ Automated tests should still be added whenever a feature can be tested reliably 
 
 ## Test Data
 
-- [ ] Development test data appears on a fresh app database.
-- [ ] Sample products appear only once after restarting the app.
-- [ ] Sample shopping lists appear only once after restarting the app.
+- [ ] With `ResetTestDataOnStartup = true`, development test data appears when the app starts.
+- [ ] With `ResetTestDataOnStartup = true`, user-created products are removed after restarting the app.
+- [ ] With `ResetTestDataOnStartup = true`, edits made to sample products are replaced by the original sample values after restarting.
+- [ ] With `ResetTestDataOnStartup = true`, user-created shopping lists are removed after restarting the app.
+- [ ] After each reset, exactly 28 sample products and 12 sample shopping lists are recreated.
 - [ ] The pending sample shopping list appears with no total entered.
-- [ ] Existing user-created data is not overwritten by the test-data seeder.
+- [ ] With `ResetTestDataOnStartup = false`, restarting the app preserves existing database changes and does not reload test data.
 
 ## Navigation and Tabs
 

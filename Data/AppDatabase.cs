@@ -640,6 +640,43 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
+		/// Delete every stored app record, then restore the built-in lookup rows.
+		/// This is intentionally destructive and is used only for development test data.
+		/// </summary>
+		public async Task ResetAllDataForDevelopmentAsync()
+		{
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			// Delete child rows first so SQLite foreign-key rules are respected.
+			await database.RunInTransactionAsync(transaction =>
+			{
+				transaction.Execute("DELETE FROM \"ShoppingListProduct\";");
+				transaction.Execute("DELETE FROM \"Product\";");
+				transaction.Execute("DELETE FROM \"Shopping_List\";");
+				transaction.Execute("DELETE FROM \"StorageLocation\";");
+				transaction.Execute("DELETE FROM \"ProductCategory\";");
+
+				// Reset AUTOINCREMENT counters so each fresh test-data load starts
+				// from the same predictable IDs as a brand-new database.
+				transaction.Execute(
+					"""
+                    DELETE FROM "sqlite_sequence"
+                    WHERE "name" IN
+                    (
+                        'Product',
+                        'Shopping_List',
+                        'StorageLocation',
+                        'ProductCategory'
+                    );
+                    """);
+			}).ConfigureAwait(false);
+
+			// Products need these lookup rows before the sample products can be added.
+			await EnsureProductCategoriesAsync(database).ConfigureAwait(false);
+			await EnsureStorageLocationsAsync(database).ConfigureAwait(false);
+		}
+
+		/// <summary>
 		/// Save a new shopping list and return its generated ID.
 		/// </summary>
 		public async Task<ShoppingList> AddShoppingListAsync(
