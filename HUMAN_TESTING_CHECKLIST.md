@@ -73,6 +73,7 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] With `ResetTestDataOnStartup = true`, user-created products are removed after restarting the app.
 - [ ] With `ResetTestDataOnStartup = true`, edits made to sample products are replaced by the original sample values after restarting.
 - [ ] With `ResetTestDataOnStartup = true`, user-created shopping lists are removed after restarting the app.
+- [ ] After each reset, exactly 7 Product Categories and 9 Storage Locations are recreated before using the Product form.
 - [ ] After each reset, exactly 28 sample products and 12 sample shopping lists are recreated.
 - [ ] The pending sample shopping list appears with no total entered.
 - [ ] With `ResetTestDataOnStartup = false`, restarting the app preserves existing database changes and does not reload test data.

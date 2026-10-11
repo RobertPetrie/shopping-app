@@ -30,6 +30,40 @@ namespace ShoppingApp.Tests
 					9,
 					await connection.Table<StorageLocation>().CountAsync());
 
+				// The lookup tables must already contain complete data before the
+				// product seeder resolves names to IDs and inserts Product rows.
+				Assert.Equal(
+					[
+						"Basic Grocery",
+						"Snack Food",
+						"Candy / Confectionery",
+						"Carbonated Beverage",
+						"Household / Non-Food",
+						"Prepared Food",
+						"Other"
+					],
+					(await connection.Table<ProductCategory>()
+						.OrderBy(category => category.SortOrder)
+						.ToListAsync())
+						.Select(category => category.Name));
+
+				Assert.Equal(
+					[
+						"Basement",
+						"Bathroom",
+						"Freezer",
+						"Garage",
+						"Kitchen Cabinet",
+						"Laundry Room",
+						"Other",
+						"Pantry",
+						"Refrigerator"
+					],
+					(await connection.Table<StorageLocation>()
+						.OrderBy(location => location.Name)
+						.ToListAsync())
+						.Select(location => location.Name));
+
 				// Taxability belongs to the category, while products store only
 				// the category they were assigned.
 				var bananas = await connection

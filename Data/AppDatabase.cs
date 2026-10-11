@@ -692,10 +692,6 @@ namespace shopping_app.Data
                     );
                     """);
 			}).ConfigureAwait(false);
-
-			// Products need these lookup rows before the sample products can be added.
-			await EnsureProductCategoriesAsync(database).ConfigureAwait(false);
-			await EnsureStorageLocationsAsync(database).ConfigureAwait(false);
 		}
 
 		/// <summary>

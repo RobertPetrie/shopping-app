@@ -22,14 +22,110 @@ namespace shopping_app.Data
 			System.Diagnostics.Debug.WriteLine(
 				$"Database location: {database.DatabasePath}");
 
+			// Products reference both lookup tables, so rebuild those first.
+			int categoryCount = await SeedProductCategoriesAsync(connection);
+			int storageLocationCount = await SeedStorageLocationsAsync(connection);
+
+			// Product rows can now safely resolve the lookup names to real IDs.
 			int productCount = await SeedProductsAsync(database, connection);
+
 			int shoppingListCount = await SeedShoppingListsAsync(
 				database,
 				connection);
 
 			System.Diagnostics.Debug.WriteLine(
-				$"Test data reset: created {productCount} products and "
+				$"Test data reset: created {categoryCount} categories, "
+					+ $"{storageLocationCount} storage locations, "
+					+ $"{productCount} products and "
 					+ $"{shoppingListCount} shopping lists.");
+		}
+
+		private static async Task<int> SeedProductCategoriesAsync(
+			SQLite.SQLiteAsyncConnection connection)
+		{
+			// Populate ProductCategory before Products because each Product stores
+			// the ID of one of these rows.
+			var categories = new ProductCategory[]
+			{
+				new()
+				{
+					Name = "Basic Grocery",
+					SortOrder = 1,
+					IsTaxable = false
+				},
+				new()
+				{
+					Name = "Snack Food",
+					SortOrder = 2,
+					IsTaxable = true
+				},
+				new()
+				{
+					Name = "Candy / Confectionery",
+					SortOrder = 3,
+					IsTaxable = true
+				},
+				new()
+				{
+					Name = "Carbonated Beverage",
+					SortOrder = 4,
+					IsTaxable = true
+				},
+				new()
+				{
+					Name = "Household / Non-Food",
+					SortOrder = 5,
+					IsTaxable = true
+				},
+				new()
+				{
+					Name = "Prepared Food",
+					SortOrder = 6,
+					IsTaxable = true
+				},
+				new()
+				{
+					Name = "Other",
+					SortOrder = 7,
+					IsTaxable = false
+				}
+			};
+
+			foreach (var category in categories)
+			{
+				await connection.InsertAsync(category);
+			}
+
+			return categories.Length;
+		}
+
+		private static async Task<int> SeedStorageLocationsAsync(
+			SQLite.SQLiteAsyncConnection connection)
+		{
+			// Populate StorageLocation before Products because each Product can
+			// reference one of these rows by ID.
+			string[] locationNames =
+			[
+				"Pantry",
+				"Refrigerator",
+				"Freezer",
+				"Kitchen Cabinet",
+				"Bathroom",
+				"Laundry Room",
+				"Basement",
+				"Garage",
+				"Other"
+			];
+
+			foreach (string name in locationNames)
+			{
+				await connection.InsertAsync(new StorageLocation
+				{
+					Name = name
+				});
+			}
+
+			return locationNames.Length;
 		}
 
 		private static async Task<int> SeedProductsAsync(
