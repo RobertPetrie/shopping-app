@@ -51,5 +51,29 @@ namespace shopping_app.Logic
 
 			return -1;
 		}
+
+		public static ProductCategory? GetCategoryAtIndex(
+			IReadOnlyList<ProductCategory> categories,
+			int selectedIndex)
+		{
+			ArgumentNullException.ThrowIfNull(categories);
+
+			// -1 means the user has not chosen anything yet.
+			return selectedIndex >= 0 && selectedIndex < categories.Count
+				? categories[selectedIndex]
+				: null;
+		}
+
+		public static StorageLocation? GetStorageLocationAtIndex(
+			IReadOnlyList<StorageLocation> storageLocations,
+			int selectedIndex)
+		{
+			ArgumentNullException.ThrowIfNull(storageLocations);
+
+			// Storage Location is optional, so no selection returns null.
+			return selectedIndex >= 0 && selectedIndex < storageLocations.Count
+				? storageLocations[selectedIndex]
+				: null;
+		}
 	}
 }

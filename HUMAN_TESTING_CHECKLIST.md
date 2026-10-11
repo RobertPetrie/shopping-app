@@ -15,6 +15,9 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Z → A sorting works.
 - [ ] Search and sorting work together.
 - [ ] Add Product button opens the product form.
+- [ ] On a new Product form, Category opens with all seven category choices available for selection.
+- [ ] On a new Product form, Storage Location opens with all nine storage-location choices available for selection.
+- [ ] Selecting Category and Storage Location on a new Product saves their IDs to the new Product record.
 - [ ] Editing an existing product opens the correct product.
 - [ ] Saving a product returns to the Products screen.
 - [ ] Newly saved or edited product is scrolled into view when appropriate.

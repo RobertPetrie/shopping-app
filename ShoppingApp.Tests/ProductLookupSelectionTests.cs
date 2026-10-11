@@ -42,6 +42,44 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
+		public void GetCategoryAtIndex_ReturnsCategoryUserSelected()
+		{
+			// The Add Product form displays category names as plain picker text.
+			// Saving must translate the selected position back to the same row ID.
+			var categories = new List<ProductCategory>
+			{
+				new() { ID = 1, Name = "Basic Grocery" },
+				new() { ID = 5, Name = "Household / Non-Food" }
+			};
+
+			var selected = ProductLookupSelection.GetCategoryAtIndex(
+				categories,
+				selectedIndex: 1);
+
+			Assert.NotNull(selected);
+			Assert.Equal(5, selected.ID);
+		}
+
+		[Fact]
+		public void GetStorageLocationAtIndex_ReturnsLocationUserSelected()
+		{
+			// The Add Product form displays storage names as plain picker text.
+			// Saving must translate the selected position back to the same row ID.
+			var locations = new List<StorageLocation>
+			{
+				new() { ID = 2, Name = "Bathroom" },
+				new() { ID = 8, Name = "Garage" }
+			};
+
+			var selected = ProductLookupSelection.GetStorageLocationAtIndex(
+				locations,
+				selectedIndex: 1);
+
+			Assert.NotNull(selected);
+			Assert.Equal(8, selected.ID);
+		}
+
+		[Fact]
 		public void FindLookupIndexes_WithoutSavedIds_LeavePickersUnselected()
 		{
 			// Add mode has no saved lookup IDs yet, so both picker helpers should

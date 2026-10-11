@@ -122,8 +122,10 @@ namespace shopping_app.Pages
 				productCategories = await database.GetProductCategoriesAsync();
 				storageLocations = await database.GetStorageLocationsAsync();
 
-				ProductCategoryPicker.ItemsSource = productCategories;
-				StorageLocationPicker.ItemsSource = storageLocations;
+				// Fill the native Picker item lists with plain text. The form keeps
+				// the matching database objects in memory so the selected index can
+				// still be translated back to the correct foreign-key ID on Save.
+				PopulateLookupPickers();
 
 				lookupsLoaded = true;
 				SelectEditingLookups();
@@ -138,6 +140,27 @@ namespace shopping_app.Pages
 					"Product categories or storage locations could not be loaded. Please try again.",
 					"OK");
 			}
+		}
+
+		private void PopulateLookupPickers()
+		{
+			// Clear first so returning to the page can never duplicate choices.
+			ProductCategoryPicker.Items.Clear();
+			StorageLocationPicker.Items.Clear();
+
+			foreach (var category in productCategories)
+			{
+				ProductCategoryPicker.Items.Add(category.Name);
+			}
+
+			foreach (var location in storageLocations)
+			{
+				StorageLocationPicker.Items.Add(location.Name);
+			}
+
+			System.Diagnostics.Debug.WriteLine(
+				$"Product form lookups loaded: {productCategories.Count} categories, "
+					+ $"{storageLocations.Count} storage locations.");
 		}
 
 		private void SelectEditingLookups()
@@ -184,7 +207,7 @@ namespace shopping_app.Pages
 			}
 
 			if (savedProductId is null
-				&& ProductCategoryPicker.SelectedItem is not ProductCategory)
+				&& ProductCategoryPicker.SelectedIndex < 0)
 			{
 				ShowCategoryError("Choose a product category.");
 				return;
@@ -230,11 +253,18 @@ namespace shopping_app.Pages
 					}
 
 					var selectedCategory =
-						(ProductCategory)ProductCategoryPicker.SelectedItem;
+						ProductLookupSelection.GetCategoryAtIndex(
+							productCategories,
+							ProductCategoryPicker.SelectedIndex)
+						?? throw new InvalidOperationException(
+							"The selected product category could not be resolved.");
 
-					// Storage location is optional, so null is a valid choice.
+					// Storage location is optional. When selected, translate the
+					// visible picker position back to the matching database row ID.
 					int? selectedStorageLocationId =
-						(StorageLocationPicker.SelectedItem as StorageLocation)?.ID;
+						ProductLookupSelection.GetStorageLocationAtIndex(
+							storageLocations,
+							StorageLocationPicker.SelectedIndex)?.ID;
 
 					if (editingProductId is int id)
 					{
@@ -363,7 +393,9 @@ namespace shopping_app.Pages
 		private void OnCategoryChanged(object? sender, EventArgs e)
 		{
 			var selectedCategory =
-				ProductCategoryPicker.SelectedItem as ProductCategory;
+				ProductLookupSelection.GetCategoryAtIndex(
+					productCategories,
+					ProductCategoryPicker.SelectedIndex);
 
 			UpdateTaxableStatus(selectedCategory);
 			ClearCategoryError();

@@ -75,7 +75,6 @@
                     x:Name="ProductCategoryPicker"
                     AutomationId="ProductCategoryPicker"
                     Title="Select a category"
-                    ItemDisplayBinding="{Binding Name}"
                     SelectedIndexChanged="OnCategoryChanged"
                     SemanticProperties.Description="Product category, required" />
 
@@ -112,7 +111,6 @@
                     x:Name="StorageLocationPicker"
                     AutomationId="StorageLocationPicker"
                     Title="Select a storage location"
-                    ItemDisplayBinding="{Binding Name}"
                     SemanticProperties.Description="Home storage location, optional" />
             </VerticalStackLayout>
 
