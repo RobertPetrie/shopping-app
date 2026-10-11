@@ -24,7 +24,12 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Product name and description text prediction behave normally on supported devices.
 - [ ] Product Category picker shows all seven built-in categories in the expected order.
 - [ ] A new product cannot be saved until the user chooses a category.
-- [ ] The Product form no longer shows a product-level Taxable Yes/No button.
+- [ ] The Product form shows a read-only Taxable field.
+- [ ] Before a category is selected, the Taxable field says "Select a category".
+- [ ] Selecting a non-taxable category changes the Taxable field to "No".
+- [ ] Selecting a taxable category changes the Taxable field to "Yes".
+- [ ] Changing categories updates the Taxable field immediately.
+- [ ] The Taxable field cannot be edited directly.
 - [ ] Saving a product preserves the selected category when it is edited again.
 - [ ] Editing an older uncategorized product lets the user choose and save a category.
 - [ ] Basic Grocery and Other categories are stored as non-taxable.

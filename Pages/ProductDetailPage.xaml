@@ -86,6 +86,21 @@
                     TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}" />
             </VerticalStackLayout>
 
+            <!-- Taxability is inherited from the selected category and cannot be edited here. -->
+            <VerticalStackLayout Spacing="6">
+                <Label
+                    Text="Taxable"
+                    FontSize="16"
+                    FontAttributes="Bold" />
+
+                <Entry
+                    x:Name="TaxableStatusEntry"
+                    AutomationId="ProductTaxableStatus"
+                    IsReadOnly="True"
+                    Text="Select a category"
+                    SemanticProperties.Description="Taxable status based on the selected category" />
+            </VerticalStackLayout>
+
             <Label
                 Text="* Required"
                 FontSize="12"

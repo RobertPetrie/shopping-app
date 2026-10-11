@@ -28,6 +28,7 @@ namespace shopping_app.Pages
 		public ProductDetailPage()
 		{
 			InitializeComponent();
+			UpdateTaxableStatus(null);
 		}
 
 		/// <summary>
@@ -113,8 +114,13 @@ namespace shopping_app.Pages
 				return;
 			}
 
-			ProductCategoryPicker.SelectedItem =
+			var selectedCategory =
 				categories.FirstOrDefault(category => category.ID == categoryId);
+
+			ProductCategoryPicker.SelectedItem = selectedCategory;
+
+			// Show the tax value that belongs to the saved category.
+			UpdateTaxableStatus(selectedCategory);
 		}
 
 		/// <summary>
@@ -310,7 +316,24 @@ namespace shopping_app.Pages
 		// ProductCategory.IsTaxable; the product itself stores only the category ID.
 		private void OnCategoryChanged(object? sender, EventArgs e)
 		{
+			var selectedCategory =
+				ProductCategoryPicker.SelectedItem as ProductCategory;
+
+			UpdateTaxableStatus(selectedCategory);
 			ClearCategoryError();
+		}
+
+		private void UpdateTaxableStatus(ProductCategory? category)
+		{
+			// Keep the field read-only and simply reflect the category value.
+			TaxableStatusEntry.Text =
+				category?.TaxableDisplay ?? "Select a category";
+
+			SemanticProperties.SetDescription(
+				TaxableStatusEntry,
+				category is null
+					? "Taxable status. Select a category first."
+					: $"Taxable: {category.TaxableDisplay}, based on the selected category.");
 		}
 
 		private void ShowCategoryError(string message)

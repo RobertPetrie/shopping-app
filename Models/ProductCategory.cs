@@ -21,6 +21,10 @@ namespace shopping_app.Models
 		[NotNull]
 		public bool IsTaxable { get; set; }
 
+		// This is display-only text; it is not stored in SQLite.
+		[Ignore]
+		public string TaxableDisplay => IsTaxable ? "Yes" : "No";
+
 		// Picker controls display the category name automatically.
 		public override string ToString() => Name;
 	}

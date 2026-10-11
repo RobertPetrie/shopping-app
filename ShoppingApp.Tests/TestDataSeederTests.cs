@@ -19,7 +19,7 @@ namespace ShoppingApp.Tests
 				var connection = await database.GetConnectionAsync();
 
 				Assert.Equal(
-					20,
+					24,
 					await connection.Table<Product>().CountAsync());
 
 				Assert.Equal(
@@ -52,6 +52,22 @@ namespace ShoppingApp.Tests
 				Assert.True(snackFood.IsTaxable);
 				Assert.Equal(basicGrocery.ID, bananas.ProductCategoryID);
 				Assert.Equal(snackFood.ID, chips.ProductCategoryID);
+
+				// Keep at least one sample product in every category so the
+				// Product form can be exercised against every tax status.
+				var categories = await connection
+					.Table<ProductCategory>()
+					.ToListAsync();
+
+				var products = await connection
+					.Table<Product>()
+					.ToListAsync();
+
+				Assert.All(
+					categories,
+					category => Assert.Contains(
+						products,
+						product => product.ProductCategoryID == category.ID));
 
 				Assert.Equal(
 					12,
@@ -89,7 +105,7 @@ namespace ShoppingApp.Tests
 				var connection = await database.GetConnectionAsync();
 
 				Assert.Equal(
-					20,
+					24,
 					await connection.Table<Product>().CountAsync());
 
 				Assert.Equal(

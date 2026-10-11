@@ -93,7 +93,19 @@ namespace shopping_app.Data
 					"Snack Food"),
 				("Victory Ice Cream",
 					"For celebrating achievements of any size.",
-					"Basic Grocery")
+					"Basic Grocery"),
+				("Cosmic Cola",
+					"Fizzy fuel for intergalactic grocery runs.",
+					"Carbonated Beverage"),
+				("Emergency Paper Towels",
+					"Because spills never schedule appointments.",
+					"Household / Non-Food"),
+				("Grab-and-Go Sandwich",
+					"Lunch that understands you are in a hurry.",
+					"Prepared Food"),
+				("Mystery Aisle Surprise",
+					"For items that refuse to fit anywhere else.",
+					"Other")
 			};
 
 			int createdCount = 0;
