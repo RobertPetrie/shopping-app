@@ -337,7 +337,7 @@ namespace ShoppingApp.Tests
 			await legacyConnection.ExecuteAsync(
 				"""
                 INSERT INTO "ProductCategory" ("Name", "SortOrder")
-                VALUES ("Basic Grocery", 1), ("Snack Food", 2);
+                VALUES ('Basic Grocery', 1), ('Snack Food', 2);
                 """);
 
 			await legacyConnection.CloseAsync();
