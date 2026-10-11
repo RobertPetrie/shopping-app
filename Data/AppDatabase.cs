@@ -13,10 +13,21 @@ namespace shopping_app.Data
 		// Keep the filename stable so app updates reuse existing data.
 		public string DatabasePath { get; }
 
-		// The app uses its private data folder during normal use.
+		// Debug builds keep the live database in the repository's DebugData
+		// folder so it is easy to inspect while developing. Release builds keep
+		// the database in the app's normal private data folder.
 		public AppDatabase()
-			: this(Path.Combine(FileSystem.AppDataDirectory, "shopping.db3"))
+			: this(GetDefaultDatabasePath())
 		{
+		}
+
+		private static string GetDefaultDatabasePath()
+		{
+#if DEBUG
+			return DevelopmentDebugArtifacts.DatabasePath;
+#else
+			return Path.Combine(FileSystem.AppDataDirectory, "shopping.db3");
+#endif
 		}
 
 		// Tests can supply a temporary path so they never touch the real app database.

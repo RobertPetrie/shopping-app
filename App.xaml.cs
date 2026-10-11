@@ -20,8 +20,18 @@ namespace shopping_app
 
 		public App(AppDatabase database)
 		{
+			// Start each Debug launch with a clean application log so the file
+			// contains only messages from the current manual-testing session.
+			DevelopmentDebugArtifacts.ResetLog();
+
 			InitializeComponent();
 			this.database = database;
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"Debug folder: {DevelopmentDebugArtifacts.FolderPath}");
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"Database location: {database.DatabasePath}");
 		}
 
 		protected override Window CreateWindow(
@@ -58,7 +68,7 @@ namespace shopping_app
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(
+				DevelopmentDebugArtifacts.WriteLine(
 					$"Could not reset and create test data: {ex}");
 
 				if (window.Page is Page page)

@@ -92,6 +92,10 @@ Automated tests should still be added whenever a feature can be tested reliably 
 ## Windows
 
 - [ ] App launches successfully on Windows.
+- [ ] A Debug launch creates `DebugData\shopping.db3` in the repository.
+- [ ] A Debug launch creates `DebugData\debug.log` in the repository.
+- [ ] Restarting the app clears the previous `debug.log` contents before writing the new session.
+- [ ] SQLite sidecar files, database files, and debug logs under `DebugData` do not appear as Git changes.
 - [ ] Material styling renders correctly in dark mode.
 - [ ] Material styling renders correctly in light mode.
 - [ ] Search boxes accept keyboard input normally.

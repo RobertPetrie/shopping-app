@@ -132,7 +132,7 @@ namespace shopping_app.Pages
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(
+				DevelopmentDebugArtifacts.WriteLine(
 					$"Could not load product lookups: {ex}");
 
 				await DisplayAlertAsync(
@@ -158,7 +158,7 @@ namespace shopping_app.Pages
 				StorageLocationPicker.Items.Add(location.Name);
 			}
 
-			System.Diagnostics.Debug.WriteLine(
+			DevelopmentDebugArtifacts.WriteLine(
 				$"Product form lookups loaded: {productCategories.Count} categories, "
 					+ $"{storageLocations.Count} storage locations.");
 		}
@@ -295,7 +295,7 @@ namespace shopping_app.Pages
 			{
 				// The unique constraint catches a duplicate even if it was
 				// created after our initial duplicate-name check.
-				System.Diagnostics.Debug.WriteLine(ex);
+				DevelopmentDebugArtifacts.WriteLine(ex);
 
 				SetBusy(false);
 				ShowNameError(
@@ -304,7 +304,7 @@ namespace shopping_app.Pages
 			catch (KeyNotFoundException ex)
 			{
 				// The product may have been deleted since the form opened.
-				System.Diagnostics.Debug.WriteLine(ex);
+				DevelopmentDebugArtifacts.WriteLine(ex);
 
 				await DisplayAlertAsync(
 					"Product unavailable",
@@ -314,7 +314,7 @@ namespace shopping_app.Pages
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(
+				DevelopmentDebugArtifacts.WriteLine(
 					$"Could not complete product save: {ex}");
 
 				await DisplayAlertAsync(
@@ -350,7 +350,7 @@ namespace shopping_app.Pages
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(ex);
+				DevelopmentDebugArtifacts.WriteLine(ex);
 
 				await DisplayAlertAsync(
 					"Products",

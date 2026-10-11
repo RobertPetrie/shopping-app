@@ -19,7 +19,7 @@ namespace shopping_app.Data
 
 			var connection = await database.GetConnectionAsync();
 
-			System.Diagnostics.Debug.WriteLine(
+			DevelopmentDebugArtifacts.WriteLine(
 				$"Database location: {database.DatabasePath}");
 
 			// Products reference both lookup tables, so rebuild those first.
@@ -33,7 +33,7 @@ namespace shopping_app.Data
 				database,
 				connection);
 
-			System.Diagnostics.Debug.WriteLine(
+			DevelopmentDebugArtifacts.WriteLine(
 				$"Test data reset: created {categoryCount} categories, "
 					+ $"{storageLocationCount} storage locations, "
 					+ $"{productCount} products and "

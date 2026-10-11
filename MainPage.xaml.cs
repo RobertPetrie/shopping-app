@@ -159,7 +159,7 @@ namespace shopping_app
 				needsRefresh = true;
 				StatusLabel.Text = "Could not load products.";
 
-				System.Diagnostics.Debug.WriteLine(
+				DevelopmentDebugArtifacts.WriteLine(
 					$"Error loading products: {ex}");
 
 				await DisplayAlertAsync(
@@ -264,7 +264,7 @@ namespace shopping_app
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(ex);
+				DevelopmentDebugArtifacts.WriteLine(ex);
 
 				await DisplayAlertAsync(
 					"Add Product",
@@ -306,7 +306,7 @@ namespace shopping_app
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(
+				DevelopmentDebugArtifacts.WriteLine(
 					$"Could not open product for editing: {ex}");
 
 				await DisplayAlertAsync(
