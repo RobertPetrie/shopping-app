@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using shopping_app.Data;
+using shopping_app.Logic;
 using shopping_app.Models;
 using SQLite;
 
@@ -16,6 +17,11 @@ namespace shopping_app.Pages
 		// Keep saved lookup IDs until the picker data has loaded.
 		private int? editingProductCategoryId;
 		private int? editingStorageLocationId;
+
+		// Keep the exact lists assigned to the pickers. Selecting by index is
+		// more reliable on Windows than comparing Picker.SelectedItem objects.
+		private List<ProductCategory> productCategories = new();
+		private List<StorageLocation> storageLocations = new();
 
 		private bool lookupsLoaded;
 
@@ -113,10 +119,10 @@ namespace shopping_app.Pages
 				// Load both lookup lists every time the form is first shown.
 				// New products get choices; existing products also get their
 				// saved category and storage location selected below.
-				var categories = await database.GetProductCategoriesAsync();
-				var storageLocations = await database.GetStorageLocationsAsync();
+				productCategories = await database.GetProductCategoriesAsync();
+				storageLocations = await database.GetStorageLocationsAsync();
 
-				ProductCategoryPicker.ItemsSource = categories;
+				ProductCategoryPicker.ItemsSource = productCategories;
 				StorageLocationPicker.ItemsSource = storageLocations;
 
 				lookupsLoaded = true;
@@ -136,27 +142,25 @@ namespace shopping_app.Pages
 
 		private void SelectEditingLookups()
 		{
-			if (editingProductCategoryId is int categoryId
-				&& ProductCategoryPicker.ItemsSource is
-					IEnumerable<ProductCategory> categories)
-			{
-				var selectedCategory =
-					categories.FirstOrDefault(category => category.ID == categoryId);
+			// Select by index instead of assigning SelectedItem directly.
+			// The Windows Picker can render more reliably when its native control
+			// receives an explicit SelectedIndex after ItemsSource is populated.
+			ProductCategoryPicker.SelectedIndex =
+				ProductLookupSelection.FindCategoryIndex(
+					productCategories,
+					editingProductCategoryId);
 
-				ProductCategoryPicker.SelectedItem = selectedCategory;
+			StorageLocationPicker.SelectedIndex =
+				ProductLookupSelection.FindStorageLocationIndex(
+					storageLocations,
+					editingStorageLocationId);
 
-				// Show the tax value that belongs to the saved category.
-				UpdateTaxableStatus(selectedCategory);
-			}
-
-			if (editingStorageLocationId is int storageLocationId
-				&& StorageLocationPicker.ItemsSource is
-					IEnumerable<StorageLocation> storageLocations)
-			{
-				StorageLocationPicker.SelectedItem =
-					storageLocations.FirstOrDefault(
-						location => location.ID == storageLocationId);
-			}
+			// Keep the read-only tax field in sync even if the picker does not
+			// raise SelectedIndexChanged while restoring an existing value.
+			UpdateTaxableStatus(
+				ProductCategoryPicker.SelectedIndex >= 0
+					? productCategories[ProductCategoryPicker.SelectedIndex]
+					: null);
 		}
 
 		/// <summary>
