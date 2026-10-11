@@ -13,10 +13,21 @@ namespace shopping_app.Data
 		// Keep the filename stable so app updates reuse existing data.
 		public string DatabasePath { get; }
 
-		// The app uses its private data folder during normal use.
+		// Debug builds keep the live database in the repository's DebugData
+		// folder so it is easy to inspect while developing. Release builds keep
+		// the database in the app's normal private data folder.
 		public AppDatabase()
-			: this(Path.Combine(FileSystem.AppDataDirectory, "shopping.db3"))
+			: this(GetDefaultDatabasePath())
 		{
+		}
+
+		private static string GetDefaultDatabasePath()
+		{
+#if DEBUG
+			return DevelopmentDebugArtifacts.DatabasePath;
+#else
+			return Path.Combine(FileSystem.AppDataDirectory, "shopping.db3");
+#endif
 		}
 
 		// Tests can supply a temporary path so they never touch the real app database.
@@ -66,12 +77,157 @@ namespace shopping_app.Data
 					await newConnection.ExecuteAsync(
 						"PRAGMA foreign_keys = ON;").ConfigureAwait(false);
 
+					// Product categories are app reference data, not development-only
+					// test data, so every database gets the same seven choices.
+					//
+					// Important: do not ask sqlite-net to migrate an old category
+					// table before our explicit migration runs. IsTaxable is NOT NULL,
+					// and sqlite-net cannot add that column to a table that already
+					// contains rows unless a SQL default is supplied.
+					int categoryTableExists =
+						await newConnection.ExecuteScalarAsync<int>(
+							"""
+                            SELECT COUNT(*)
+                            FROM sqlite_master
+                            WHERE type = 'table'
+                              AND name = 'ProductCategory';
+                            """).ConfigureAwait(false);
+
+					if (categoryTableExists == 0)
+					{
+						// A brand-new database can use the current model directly.
+						await newConnection.CreateTableAsync<ProductCategory>()
+							.ConfigureAwait(false);
+					}
+					else
+					{
+						int categoryTaxColumnExists =
+							await newConnection.ExecuteScalarAsync<int>(
+								"""
+                                SELECT COUNT(*)
+                                FROM pragma_table_info('ProductCategory')
+                                WHERE name = 'IsTaxable';
+                                """).ConfigureAwait(false);
+
+						if (categoryTaxColumnExists == 0)
+						{
+							// Older databases had categories without a tax flag.
+							// Add a SQL default so existing rows receive a valid value,
+							// then apply the intended built-in category defaults.
+							await newConnection.ExecuteAsync(
+								"""
+                                ALTER TABLE "ProductCategory"
+                                ADD COLUMN "IsTaxable" INTEGER NOT NULL DEFAULT 0;
+                                """).ConfigureAwait(false);
+
+							await ApplyBuiltInCategoryTaxDefaultsAsync(newConnection)
+								.ConfigureAwait(false);
+						}
+					}
+
+					await EnsureProductCategoriesAsync(newConnection)
+						.ConfigureAwait(false);
+
+					// Storage locations are reference data used by the Product form.
+					await newConnection.CreateTableAsync<StorageLocation>()
+						.ConfigureAwait(false);
+
+					await EnsureStorageLocationsAsync(newConnection)
+						.ConfigureAwait(false);
+
+					// Older app databases may not have the newer Product columns.
+					// Add them before sqlite-net compares the Product model so
+					// existing rows remain intact.
+					int productTableExists =
+						await newConnection.ExecuteScalarAsync<int>(
+							"""
+                            SELECT COUNT(*)
+                            FROM sqlite_master
+                            WHERE type = 'table'
+                              AND name = 'Product';
+                            """).ConfigureAwait(false);
+
+					if (productTableExists > 0)
+					{
+						int legacyTaxColumnExists =
+							await newConnection.ExecuteScalarAsync<int>(
+								"""
+                                SELECT COUNT(*)
+                                FROM pragma_table_info('Product')
+                                WHERE name = 'IsTaxable';
+                                """).ConfigureAwait(false);
+
+						if (legacyTaxColumnExists > 0)
+						{
+							// Taxability now belongs to ProductCategory.
+							// This removes the short-lived Product column while
+							// preserving every Product row.
+							await newConnection.ExecuteAsync(
+								"""
+                                ALTER TABLE "Product"
+                                DROP COLUMN "IsTaxable";
+                                """).ConfigureAwait(false);
+						}
+
+						int categoryColumnExists =
+							await newConnection.ExecuteScalarAsync<int>(
+								"""
+                                SELECT COUNT(*)
+                                FROM pragma_table_info('Product')
+                                WHERE name = 'ProductCategoryID';
+                                """).ConfigureAwait(false);
+
+						if (categoryColumnExists == 0)
+						{
+							// Do not guess categories for existing products.
+							await newConnection.ExecuteAsync(
+								"""
+                                ALTER TABLE "Product"
+                                ADD COLUMN "ProductCategoryID" INTEGER;
+                                """).ConfigureAwait(false);
+						}
+
+						int storageLocationColumnExists =
+							await newConnection.ExecuteScalarAsync<int>(
+								"""
+                                SELECT COUNT(*)
+                                FROM pragma_table_info('Product')
+                                WHERE name = 'StorageLocationID';
+                                """).ConfigureAwait(false);
+
+						if (storageLocationColumnExists == 0)
+						{
+							// Existing products remain unassigned until edited.
+							await newConnection.ExecuteAsync(
+								"""
+                                ALTER TABLE "Product"
+                                ADD COLUMN "StorageLocationID" INTEGER;
+                                """).ConfigureAwait(false);
+						}
+					}
+
 					// Create parent tables before the linking table.
 					await newConnection.CreateTableAsync<Product>()
 						.ConfigureAwait(false);
 
 					await newConnection.CreateTableAsync<ShoppingList>()
 						.ConfigureAwait(false);
+
+					// Support fast product-to-category lookups on new and old databases.
+					await newConnection.ExecuteAsync(
+						"""
+                        CREATE INDEX IF NOT EXISTS
+                            "IX_Product_ProductCategoryID"
+                        ON "Product" ("ProductCategoryID");
+                        """).ConfigureAwait(false);
+
+					// Storage location is another Product lookup.
+					await newConnection.ExecuteAsync(
+						"""
+                        CREATE INDEX IF NOT EXISTS
+                            "IX_Product_StorageLocationID"
+                        ON "Product" ("StorageLocationID");
+                        """).ConfigureAwait(false);
 
 					// Preserve existing tables and records.
 					await newConnection.ExecuteAsync(
@@ -122,6 +278,188 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
+		/// Built-in category defaults. Taxability lives here rather than Product.
+		/// </summary>
+		private static readonly (string Name, int SortOrder, bool IsTaxable)[]
+			BuiltInProductCategories =
+			[
+				("Basic Grocery", 1, false),
+				("Snack Food", 2, true),
+				("Candy / Confectionery", 3, true),
+				("Carbonated Beverage", 4, true),
+				("Household / Non-Food", 5, true),
+				("Prepared Food", 6, true),
+				("Other", 7, false)
+			];
+
+		/// <summary>
+		/// Apply tax defaults only during the one-time schema migration.
+		/// Later category edits will not be overwritten when the app starts.
+		/// </summary>
+		private static async Task ApplyBuiltInCategoryTaxDefaultsAsync(
+			SQLiteAsyncConnection database)
+		{
+			foreach (var category in BuiltInProductCategories)
+			{
+				await database.ExecuteAsync(
+					"""
+                    UPDATE "ProductCategory"
+                    SET "IsTaxable" = ?
+                    WHERE "Name" = ?;
+                    """,
+					category.IsTaxable,
+					category.Name).ConfigureAwait(false);
+			}
+		}
+
+		/// <summary>
+		/// Insert any missing built-in categories without changing existing rows.
+		/// </summary>
+		private static async Task EnsureProductCategoriesAsync(
+			SQLiteAsyncConnection database)
+		{
+			foreach (var category in BuiltInProductCategories)
+			{
+				var existing = await database
+					.Table<ProductCategory>()
+					.Where(item => item.Name == category.Name)
+					.FirstOrDefaultAsync()
+					.ConfigureAwait(false);
+
+				if (existing is null)
+				{
+					await database.InsertAsync(new ProductCategory
+					{
+						Name = category.Name,
+						SortOrder = category.SortOrder,
+						IsTaxable = category.IsTaxable
+					}).ConfigureAwait(false);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Return categories in the order shown on the product form.
+		/// </summary>
+		public async Task<List<ProductCategory>> GetProductCategoriesAsync()
+		{
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database
+				.Table<ProductCategory>()
+				.OrderBy(category => category.SortOrder)
+				.ToListAsync()
+				.ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Default home-storage labels. There is intentionally no sort-order column;
+		/// the picker sorts these names alphabetically.
+		/// </summary>
+		private static readonly string[] BuiltInStorageLocations =
+		[
+			"Pantry",
+			"Refrigerator",
+			"Freezer",
+			"Kitchen Cabinet",
+			"Bathroom",
+			"Laundry Room",
+			"Basement",
+			"Garage",
+			"Other"
+		];
+
+		private static async Task EnsureStorageLocationsAsync(
+			SQLiteAsyncConnection database)
+		{
+			foreach (string name in BuiltInStorageLocations)
+			{
+				var existing = await database
+					.Table<StorageLocation>()
+					.Where(location => location.Name == name)
+					.FirstOrDefaultAsync()
+					.ConfigureAwait(false);
+
+				if (existing is null)
+				{
+					await database.InsertAsync(new StorageLocation
+					{
+						Name = name
+					}).ConfigureAwait(false);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Return storage locations alphabetically for the Product form.
+		/// </summary>
+		public async Task<List<StorageLocation>> GetStorageLocationsAsync()
+		{
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database
+				.Table<StorageLocation>()
+				.OrderBy(location => location.Name)
+				.ToListAsync()
+				.ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Verify a selected storage location still exists before saving.
+		/// Null is allowed because storage location is optional.
+		/// </summary>
+		private static void EnsureStorageLocationExists(
+			SQLiteConnection database,
+			int? storageLocationId)
+		{
+			if (storageLocationId is null)
+			{
+				return;
+			}
+
+			int count = database.ExecuteScalar<int>(
+				"""
+                SELECT COUNT(*)
+                FROM "StorageLocation"
+                WHERE "ID" = ?;
+                """,
+				storageLocationId.Value);
+
+			if (count == 0)
+			{
+				throw new KeyNotFoundException(
+					"The selected storage location no longer exists.");
+			}
+		}
+
+		/// <summary>
+		/// Verify a selected category still exists before saving a product.
+		/// </summary>
+		private static void EnsureProductCategoryExists(
+			SQLiteConnection database,
+			int? productCategoryId)
+		{
+			if (productCategoryId is null)
+			{
+				return;
+			}
+
+			int count = database.ExecuteScalar<int>(
+				"""
+                SELECT COUNT(*)
+                FROM "ProductCategory"
+                WHERE "ID" = ?;
+                """,
+				productCategoryId.Value);
+
+			if (count == 0)
+			{
+				throw new KeyNotFoundException(
+					"The selected product category no longer exists.");
+			}
+		}
+
+		/// <summary>
 		/// Compare names using the same rule everywhere.
 		/// Ignore capitalization and surrounding whitespace.
 		/// Exclude the current product when checking an edit.
@@ -139,6 +477,28 @@ namespace shopping_app.Data
 					product.Name.Trim(),
 					trimmedName,
 					StringComparison.OrdinalIgnoreCase));
+		}
+
+		/// <summary>
+		/// Load one complete Product row for the edit form.
+		/// Returning null lets the caller handle a product deleted after navigation.
+		/// </summary>
+		public async Task<Product?> GetProductAsync(int productId)
+		{
+			if (productId <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(productId),
+					"Product ID must be greater than zero.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database
+				.Table<Product>()
+				.Where(product => product.ID == productId)
+				.FirstOrDefaultAsync()
+				.ConfigureAwait(false);
 		}
 
 		/// <summary>
@@ -197,7 +557,9 @@ namespace shopping_app.Data
 		/// </summary>
 		public async Task<Product> AddProductAsync(
 			string name,
-			string? description = null)
+			string? description = null,
+			int? productCategoryId = null,
+			int? storageLocationId = null)
 		{
 			if (string.IsNullOrWhiteSpace(name))
 			{
@@ -211,6 +573,8 @@ namespace shopping_app.Data
 			{
 				Name = name.Trim(),
 				Description = description,
+				ProductCategoryID = productCategoryId,
+				StorageLocationID = storageLocationId,
 				CreatedOn = DateTime.UtcNow,
 				ModifiedOn = null
 			};
@@ -220,6 +584,13 @@ namespace shopping_app.Data
 			await database.RunInTransactionAsync(transaction =>
 			{
 				EnsureUniqueProductName(transaction, product.Name);
+				EnsureProductCategoryExists(
+					transaction,
+					product.ProductCategoryID);
+
+				EnsureStorageLocationExists(
+					transaction,
+					product.StorageLocationID);
 
 				// SQLite assigns the ID and updates product.ID.
 				transaction.Insert(product);
@@ -229,13 +600,15 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
-		/// Update the name and description of an existing product.
+		/// Update the editable fields of an existing product.
 		/// Preserve its ID, CreatedOn, ImagePath, and shopping-list links.
 		/// </summary>
 		public async Task UpdateProductAsync(
 			int productId,
 			string name,
-			string? description = null)
+			string? description = null,
+			int? productCategoryId = null,
+			int? storageLocationId = null)
 		{
 			if (productId <= 0)
 			{
@@ -263,6 +636,14 @@ namespace shopping_app.Data
 					trimmedName,
 					productId);
 
+				EnsureProductCategoryExists(
+					transaction,
+					productCategoryId);
+
+				EnsureStorageLocationExists(
+					transaction,
+					storageLocationId);
+
 				// Change only the editable fields and modification time.
 				// Parameters keep user-entered text separate from SQL.
 				int rowsUpdated = transaction.Execute(
@@ -270,11 +651,15 @@ namespace shopping_app.Data
                     UPDATE "Product"
                     SET "Name" = ?,
                         "Description" = ?,
+                        "ProductCategoryID" = ?,
+                        "StorageLocationID" = ?,
                         "ModifiedOn" = ?
                     WHERE "ID" = ?;
                     """,
 					trimmedName,
 					description,
+					productCategoryId,
+					storageLocationId,
 					DateTime.UtcNow.Ticks,
 					productId);
 
@@ -284,6 +669,39 @@ namespace shopping_app.Data
 					throw new KeyNotFoundException(
 						"This product no longer exists.");
 				}
+			}).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Delete every stored app record, then restore the built-in lookup rows.
+		/// This is intentionally destructive and is used only for development test data.
+		/// </summary>
+		public async Task ResetAllDataForDevelopmentAsync()
+		{
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			// Delete child rows first so SQLite foreign-key rules are respected.
+			await database.RunInTransactionAsync(transaction =>
+			{
+				transaction.Execute("DELETE FROM \"ShoppingListProduct\";");
+				transaction.Execute("DELETE FROM \"Product\";");
+				transaction.Execute("DELETE FROM \"Shopping_List\";");
+				transaction.Execute("DELETE FROM \"StorageLocation\";");
+				transaction.Execute("DELETE FROM \"ProductCategory\";");
+
+				// Reset AUTOINCREMENT counters so each fresh test-data load starts
+				// from the same predictable IDs as a brand-new database.
+				transaction.Execute(
+					"""
+                    DELETE FROM "sqlite_sequence"
+                    WHERE "name" IN
+                    (
+                        'Product',
+                        'Shopping_List',
+                        'StorageLocation',
+                        'ProductCategory'
+                    );
+                    """);
 			}).ConfigureAwait(false);
 		}
 

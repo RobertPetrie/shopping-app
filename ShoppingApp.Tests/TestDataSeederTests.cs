@@ -6,7 +6,7 @@ namespace ShoppingApp.Tests
 	public class TestDataSeederTests
 	{
 		[Fact]
-		public async Task SeedAsync_OnEmptyDatabase_CreatesExpectedSampleData()
+		public async Task ResetAndSeedAsync_OnEmptyDatabase_CreatesExpectedSampleData()
 		{
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
@@ -14,13 +14,137 @@ namespace ShoppingApp.Tests
 			try
 			{
 				// Seed a brand-new database exactly like the development app does.
-				await TestDataSeeder.SeedAsync(database);
+				await TestDataSeeder.ResetAndSeedAsync(database);
 
 				var connection = await database.GetConnectionAsync();
 
 				Assert.Equal(
-					20,
+					28,
 					await connection.Table<Product>().CountAsync());
+
+				Assert.Equal(
+					7,
+					await connection.Table<ProductCategory>().CountAsync());
+
+				Assert.Equal(
+					9,
+					await connection.Table<StorageLocation>().CountAsync());
+
+				// The lookup tables must already contain complete data before the
+				// product seeder resolves names to IDs and inserts Product rows.
+				Assert.Equal(
+					[
+						"Basic Grocery",
+						"Snack Food",
+						"Candy / Confectionery",
+						"Carbonated Beverage",
+						"Household / Non-Food",
+						"Prepared Food",
+						"Other"
+					],
+					(await connection.Table<ProductCategory>()
+						.OrderBy(category => category.SortOrder)
+						.ToListAsync())
+						.Select(category => category.Name));
+
+				Assert.Equal(
+					[
+						"Basement",
+						"Bathroom",
+						"Freezer",
+						"Garage",
+						"Kitchen Cabinet",
+						"Laundry Room",
+						"Other",
+						"Pantry",
+						"Refrigerator"
+					],
+					(await connection.Table<StorageLocation>()
+						.OrderBy(location => location.Name)
+						.ToListAsync())
+						.Select(location => location.Name));
+
+				// Taxability belongs to the category, while products store only
+				// the category they were assigned.
+				var bananas = await connection
+					.Table<Product>()
+					.Where(product => product.Name == "Disco Bananas")
+					.FirstAsync();
+
+				var chips = await connection
+					.Table<Product>()
+					.Where(product => product.Name == "Royal Couch Potato Chips")
+					.FirstAsync();
+
+				var basicGrocery = await connection
+					.Table<ProductCategory>()
+					.Where(category => category.Name == "Basic Grocery")
+					.FirstAsync();
+
+				var snackFood = await connection
+					.Table<ProductCategory>()
+					.Where(category => category.Name == "Snack Food")
+					.FirstAsync();
+
+				Assert.False(basicGrocery.IsTaxable);
+				Assert.True(snackFood.IsTaxable);
+				Assert.Equal(basicGrocery.ID, bananas.ProductCategoryID);
+				Assert.Equal(snackFood.ID, chips.ProductCategoryID);
+
+				// Keep at least one sample product in every category so the
+				// Product form can be exercised against every tax status.
+				var categories = await connection
+					.Table<ProductCategory>()
+					.ToListAsync();
+
+				var products = await connection
+					.Table<Product>()
+					.ToListAsync();
+
+				Assert.All(
+					categories,
+					category => Assert.Contains(
+						products,
+						product => product.ProductCategoryID == category.ID));
+
+				// Every built-in storage location has sample data so the picker
+				// can be exercised without creating extra records by hand.
+				var storageLocations = await connection
+					.Table<StorageLocation>()
+					.ToListAsync();
+
+				Assert.All(
+					storageLocations,
+					location => Assert.Contains(
+						products,
+						product => product.StorageLocationID == location.ID));
+
+				// Every sample product is ready for edit-form testing immediately;
+				// none of the seeded rows should open with blank lookup selections.
+				Assert.All(products, product =>
+				{
+					Assert.NotNull(product.ProductCategoryID);
+					Assert.NotNull(product.StorageLocationID);
+				});
+
+				// Bathroom Tissue is a useful manual-test example because both of
+				// its expected lookup values are obvious when the form opens.
+				var bathroomTissue = products.Single(
+					product => product.Name == "Bathroom Tissue");
+
+				var householdCategory = categories.Single(
+					category => category.Name == "Household / Non-Food");
+
+				var bathroomLocation = storageLocations.Single(
+					location => location.Name == "Bathroom");
+
+				Assert.Equal(
+					householdCategory.ID,
+					bathroomTissue.ProductCategoryID);
+
+				Assert.Equal(
+					bathroomLocation.ID,
+					bathroomTissue.StorageLocationID);
 
 				Assert.Equal(
 					12,
@@ -44,26 +168,86 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
-		public async Task SeedAsync_WhenRunTwice_DoesNotDuplicateSampleData()
+		public async Task ResetAndSeedAsync_WithExistingData_ReplacesItWithFreshSamples()
 		{
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
 			try
 			{
-				// Running the seeder more than once should be safe.
-				await TestDataSeeder.SeedAsync(database);
-				await TestDataSeeder.SeedAsync(database);
+				// First create the normal samples, then add and modify records to
+				// imitate changes made during a manual-testing session.
+				await TestDataSeeder.ResetAndSeedAsync(database);
 
 				var connection = await database.GetConnectionAsync();
+				var grocery = await connection
+					.Table<ProductCategory>()
+					.Where(category => category.Name == "Basic Grocery")
+					.FirstAsync();
+
+				var pantry = await connection
+					.Table<StorageLocation>()
+					.Where(location => location.Name == "Pantry")
+					.FirstAsync();
+
+				await database.AddProductAsync(
+					"Robert's Temporary Test Product",
+					"Should disappear on the next reset.",
+					grocery.ID,
+					pantry.ID);
+
+				var bananas = await connection
+					.Table<Product>()
+					.Where(product => product.Name == "Disco Bananas")
+					.FirstAsync();
+
+				await database.UpdateProductAsync(
+					bananas.ID,
+					"Edited Bananas",
+					"Also should disappear on reset.",
+					grocery.ID,
+					pantry.ID);
+
+				await database.AddShoppingListAsync(
+					new DateOnly(2030, 1, 1),
+					999.99m,
+					true);
+
+				// A second startup-style reset should erase those changes and
+				// recreate exactly the known development sample set.
+				await TestDataSeeder.ResetAndSeedAsync(database);
 
 				Assert.Equal(
-					20,
+					28,
 					await connection.Table<Product>().CountAsync());
 
 				Assert.Equal(
 					12,
 					await connection.Table<ShoppingList>().CountAsync());
+
+				Assert.Equal(
+					0,
+					await connection.Table<Product>()
+						.Where(product => product.Name == "Robert's Temporary Test Product")
+						.CountAsync());
+
+				Assert.Equal(
+					0,
+					await connection.Table<Product>()
+						.Where(product => product.Name == "Edited Bananas")
+						.CountAsync());
+
+				Assert.Equal(
+					1,
+					await connection.Table<Product>()
+						.Where(product => product.Name == "Disco Bananas")
+						.CountAsync());
+
+				Assert.Equal(
+					0,
+					await connection.Table<ShoppingList>()
+						.Where(list => list.ShoppingDateStorage == "2030-01-01")
+						.CountAsync());
 			}
 			finally
 			{

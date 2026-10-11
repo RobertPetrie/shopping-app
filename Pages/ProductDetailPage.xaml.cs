@@ -1,5 +1,5 @@
-using Microsoft.Extensions.DependencyInjection;
 using shopping_app.Data;
+using shopping_app.Logic;
 using shopping_app.Models;
 using SQLite;
 
@@ -11,7 +11,19 @@ namespace shopping_app.Pages
 	/// </summary>
 	public partial class ProductDetailPage : ContentPage, IQueryAttributable
 	{
+		private readonly AppDatabase database;
 		private bool isBusy;
+
+		// Keep saved lookup IDs until the picker data has loaded.
+		private int? editingProductCategoryId;
+		private int? editingStorageLocationId;
+
+		// Keep the exact lists assigned to the pickers. Selecting by index is
+		// more reliable on Windows than comparing Picker.SelectedItem objects.
+		private List<ProductCategory> productCategories = new();
+		private List<StorageLocation> storageLocations = new();
+
+		private bool lookupsLoaded;
 
 		// Null means Add mode; otherwise identifies the existing record.
 		private int? editingProductId;
@@ -20,9 +32,16 @@ namespace shopping_app.Pages
 		// Retrying must not insert again or repeat the update.
 		private int? savedProductId;
 
-		public ProductDetailPage()
+		public ProductDetailPage(AppDatabase database)
 		{
+			// Receive the shared database directly from MAUI dependency injection.
+			// This avoids relying on Handler.MauiContext during OnAppearing, because
+			// the page handler may not exist yet at that point in the lifecycle.
+			this.database = database
+				?? throw new ArgumentNullException(nameof(database));
+
 			InitializeComponent();
+			UpdateTaxableStatus(null);
 		}
 
 		/// <summary>
@@ -39,6 +58,9 @@ namespace shopping_app.Pages
 
 				ProductNameEntry.Text = product.Name;
 				ProductDescriptionEditor.Text = product.Description;
+				editingProductCategoryId = product.ProductCategoryID;
+				editingStorageLocationId = product.StorageLocationID;
+				SelectEditingLookups();
 
 				ClearNameError();
 
@@ -59,8 +81,113 @@ namespace shopping_app.Pages
 			}
 		}
 
+		protected override async void OnAppearing()
+		{
+			base.OnAppearing();
+
+			if (lookupsLoaded)
+			{
+				SelectEditingLookups();
+				return;
+			}
+
+			try
+			{
+				// The development build may be replacing all data during startup.
+				// Wait for that work before reading the product or either lookup table.
+				if (Application.Current is App app)
+				{
+					await app.TestDataReady;
+				}
+
+
+				if (editingProductId is int productId)
+				{
+					// Reload the complete row from SQLite. This guarantees the picker
+					// selections use the current category and storage-location IDs,
+					// even if the navigation object was stale.
+					var currentProduct = await database.GetProductAsync(productId)
+						?? throw new KeyNotFoundException(
+							"This product no longer exists.");
+
+					ProductNameEntry.Text = currentProduct.Name;
+					ProductDescriptionEditor.Text = currentProduct.Description;
+					editingProductCategoryId = currentProduct.ProductCategoryID;
+					editingStorageLocationId = currentProduct.StorageLocationID;
+				}
+
+				// Load both lookup lists every time the form is first shown.
+				// New products get choices; existing products also get their
+				// saved category and storage location selected below.
+				productCategories = await database.GetProductCategoriesAsync();
+				storageLocations = await database.GetStorageLocationsAsync();
+
+				// Fill the native Picker item lists with plain text. The form keeps
+				// the matching database objects in memory so the selected index can
+				// still be translated back to the correct foreign-key ID on Save.
+				PopulateLookupPickers();
+
+				lookupsLoaded = true;
+				SelectEditingLookups();
+			}
+			catch (Exception ex)
+			{
+				DevelopmentDebugArtifacts.WriteLine(
+					$"Could not load product lookups: {ex}");
+
+				await DisplayAlertAsync(
+					"Product Lookups",
+					"Product categories or storage locations could not be loaded. Please try again.",
+					"OK");
+			}
+		}
+
+		private void PopulateLookupPickers()
+		{
+			// Clear first so returning to the page can never duplicate choices.
+			ProductCategoryPicker.Items.Clear();
+			StorageLocationPicker.Items.Clear();
+
+			foreach (var category in productCategories)
+			{
+				ProductCategoryPicker.Items.Add(category.Name);
+			}
+
+			foreach (var location in storageLocations)
+			{
+				StorageLocationPicker.Items.Add(location.Name);
+			}
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"Product form lookups loaded: {productCategories.Count} categories, "
+					+ $"{storageLocations.Count} storage locations.");
+		}
+
+		private void SelectEditingLookups()
+		{
+			// Select by index instead of assigning SelectedItem directly.
+			// The Windows Picker can render more reliably when its native control
+			// receives an explicit SelectedIndex after ItemsSource is populated.
+			ProductCategoryPicker.SelectedIndex =
+				ProductLookupSelection.FindCategoryIndex(
+					productCategories,
+					editingProductCategoryId);
+
+			StorageLocationPicker.SelectedIndex =
+				ProductLookupSelection.FindStorageLocationIndex(
+					storageLocations,
+					editingStorageLocationId);
+
+			// Keep the read-only tax field in sync even if the picker does not
+			// raise SelectedIndexChanged while restoring an existing value.
+			UpdateTaxableStatus(
+				ProductCategoryPicker.SelectedIndex >= 0
+					? productCategories[ProductCategoryPicker.SelectedIndex]
+					: null);
+		}
+
 		/// <summary>
-		/// Validate the required name and check for duplicates.
+		/// Validate the required name and category, then check for duplicates.
 		/// Insert or update, then return the saved ID to the products list.
 		/// </summary>
 		private async void OnSaveClicked(object? sender, EventArgs e)
@@ -79,7 +206,15 @@ namespace shopping_app.Pages
 				return;
 			}
 
+			if (savedProductId is null
+				&& ProductCategoryPicker.SelectedIndex < 0)
+			{
+				ShowCategoryError("Choose a product category.");
+				return;
+			}
+
 			ClearNameError();
+			ClearCategoryError();
 			SetBusy(true);
 
 			try
@@ -87,12 +222,6 @@ namespace shopping_app.Pages
 				// If an earlier save succeeded, only retry navigation.
 				if (savedProductId is null)
 				{
-					var services = Handler?.MauiContext?.Services
-						?? throw new InvalidOperationException(
-							"The page's app services are unavailable.");
-
-					var database =
-						services.GetRequiredService<AppDatabase>();
 
 					// Exclude this product when editing so its existing
 					// name does not count as a duplicate of itself.
@@ -117,13 +246,29 @@ namespace shopping_app.Pages
 						description = null;
 					}
 
+					var selectedCategory =
+						ProductLookupSelection.GetCategoryAtIndex(
+							productCategories,
+							ProductCategoryPicker.SelectedIndex)
+						?? throw new InvalidOperationException(
+							"The selected product category could not be resolved.");
+
+					// Storage location is optional. When selected, translate the
+					// visible picker position back to the matching database row ID.
+					int? selectedStorageLocationId =
+						ProductLookupSelection.GetStorageLocationAtIndex(
+							storageLocations,
+							StorageLocationPicker.SelectedIndex)?.ID;
+
 					if (editingProductId is int id)
 					{
 						// Update the existing record without changing its ID.
 						await database.UpdateProductAsync(
 							id,
 							name,
-							description);
+							description,
+							selectedCategory.ID,
+							selectedStorageLocationId);
 
 						savedProductId = id;
 					}
@@ -132,7 +277,9 @@ namespace shopping_app.Pages
 						// Add mode retains the existing insertion behavior.
 						var product = await database.AddProductAsync(
 							name,
-							description);
+							description,
+							selectedCategory.ID,
+							selectedStorageLocationId);
 
 						savedProductId = product.ID;
 					}
@@ -148,7 +295,7 @@ namespace shopping_app.Pages
 			{
 				// The unique constraint catches a duplicate even if it was
 				// created after our initial duplicate-name check.
-				System.Diagnostics.Debug.WriteLine(ex);
+				DevelopmentDebugArtifacts.WriteLine(ex);
 
 				SetBusy(false);
 				ShowNameError(
@@ -157,7 +304,7 @@ namespace shopping_app.Pages
 			catch (KeyNotFoundException ex)
 			{
 				// The product may have been deleted since the form opened.
-				System.Diagnostics.Debug.WriteLine(ex);
+				DevelopmentDebugArtifacts.WriteLine(ex);
 
 				await DisplayAlertAsync(
 					"Product unavailable",
@@ -167,7 +314,7 @@ namespace shopping_app.Pages
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(
+				DevelopmentDebugArtifacts.WriteLine(
 					$"Could not complete product save: {ex}");
 
 				await DisplayAlertAsync(
@@ -203,7 +350,7 @@ namespace shopping_app.Pages
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(ex);
+				DevelopmentDebugArtifacts.WriteLine(ex);
 
 				await DisplayAlertAsync(
 					"Products",
@@ -233,6 +380,46 @@ namespace shopping_app.Pages
 			}
 
 			return Shell.Current.GoToAsync("..");
+		}
+
+		// Category selection determines the product's tax treatment through
+		// ProductCategory.IsTaxable; the product itself stores only the category ID.
+		private void OnCategoryChanged(object? sender, EventArgs e)
+		{
+			var selectedCategory =
+				ProductLookupSelection.GetCategoryAtIndex(
+					productCategories,
+					ProductCategoryPicker.SelectedIndex);
+
+			UpdateTaxableStatus(selectedCategory);
+			ClearCategoryError();
+		}
+
+		private void UpdateTaxableStatus(ProductCategory? category)
+		{
+			// Keep the field read-only and simply reflect the category value.
+			TaxableStatusEntry.Text =
+				category?.TaxableDisplay ?? "Select a category";
+
+			SemanticProperties.SetDescription(
+				TaxableStatusEntry,
+				category is null
+					? "Taxable status. Select a category first."
+					: $"Taxable: {category.TaxableDisplay}, based on the selected category.");
+		}
+
+		private void ShowCategoryError(string message)
+		{
+			CategoryValidationLabel.Text = message;
+			CategoryValidationLabel.IsVisible = true;
+			ProductCategoryPicker.Focus();
+			SemanticScreenReader.Announce(message);
+		}
+
+		private void ClearCategoryError()
+		{
+			CategoryValidationLabel.IsVisible = false;
+			CategoryValidationLabel.Text = string.Empty;
 		}
 
 		// Move to the description with the keyboard's Next action.
@@ -282,6 +469,12 @@ namespace shopping_app.Pages
 				!busy && savedProductId is null;
 
 			ProductDescriptionEditor.IsEnabled =
+				!busy && savedProductId is null;
+
+			ProductCategoryPicker.IsEnabled =
+				!busy && savedProductId is null;
+
+			StorageLocationPicker.IsEnabled =
 				!busy && savedProductId is null;
 
 			SavingIndicator.IsVisible = busy;

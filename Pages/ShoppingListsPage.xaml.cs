@@ -91,7 +91,7 @@ namespace shopping_app.Pages
 				needsRefresh = true;
 				StatusLabel.Text = "Could not load shopping lists.";
 
-				System.Diagnostics.Debug.WriteLine(
+				DevelopmentDebugArtifacts.WriteLine(
 					$"Error loading shopping lists: {ex}");
 
 				await DisplayAlertAsync(

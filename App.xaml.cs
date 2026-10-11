@@ -4,9 +4,10 @@ namespace shopping_app
 {
 	public partial class App : Application
 	{
-		// Keep this true while developing so the app has useful sample data.
-		// Set it to false before shipping a real release.
-		private static readonly bool CreateTestData = true;
+		// Keep this true while developing to start every launch with the same
+		// clean sample data. WARNING: when true, all existing app data is erased.
+		// Set it to false whenever you want the database to keep real changes.
+		private const bool ResetTestDataOnStartup = true;
 
 		private readonly AppDatabase database;
 
@@ -19,8 +20,18 @@ namespace shopping_app
 
 		public App(AppDatabase database)
 		{
+			// Start each Debug launch with a clean application log so the file
+			// contains only messages from the current manual-testing session.
+			DevelopmentDebugArtifacts.ResetLog();
+
 			InitializeComponent();
 			this.database = database;
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"Debug folder: {DevelopmentDebugArtifacts.FolderPath}");
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"Database location: {database.DatabasePath}");
 		}
 
 		protected override Window CreateWindow(
@@ -28,7 +39,7 @@ namespace shopping_app
 		{
 			var window = new Window(new AppShell());
 
-			if (CreateTestData)
+			if (ResetTestDataOnStartup)
 			{
 				window.Created += OnWindowCreated;
 			}
@@ -53,18 +64,18 @@ namespace shopping_app
 
 			try
 			{
-				await TestDataSeeder.SeedAsync(database);
+				await TestDataSeeder.ResetAndSeedAsync(database);
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(
-					$"Could not create test data: {ex}");
+				DevelopmentDebugArtifacts.WriteLine(
+					$"Could not reset and create test data: {ex}");
 
 				if (window.Page is Page page)
 				{
 					await page.DisplayAlertAsync(
 						"Test data",
-						"Could not create all test data. "
+						"Could not reset and create all test data. "
 							+ "See the debug output for details.",
 						"OK");
 				}

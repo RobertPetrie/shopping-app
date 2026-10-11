@@ -21,6 +21,21 @@ namespace shopping_app.Models
 		// Null means the product has no picture.
 		public string? ImagePath { get; set; }
 
+		// The selected category is stored separately in ProductCategory.
+		// Null is allowed only for older records created before categories existed.
+		[Indexed]
+		public int? ProductCategoryID { get; set; }
+
+		// Optional home storage location for this product.
+		// Existing products stay null until the user chooses a location.
+		[Indexed]
+		public int? StorageLocationID { get; set; }
+
+		// Filled by the Products screen from the StorageLocation lookup table.
+		// Ignore keeps this friendly display text out of the Product database row.
+		[Ignore]
+		public string StorageLocationName { get; set; } = "Unassigned";
+
 		// Assigned by AddProductAsync immediately before insertion.
 		[NotNull]
 		public DateTime CreatedOn { get; set; }

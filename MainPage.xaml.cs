@@ -18,7 +18,8 @@ namespace shopping_app
 		private bool needsRefresh = true;
 
 		// Preserve the chosen order while navigating to the form and back.
-		private bool sortAscending = true;
+		// The button cycles A-to-Z, Z-to-A, then Storage Location.
+		private ProductSortMode sortMode = ProductSortMode.NameAscending;
 
 		private List<Product> products = new();
 
@@ -113,6 +114,24 @@ namespace shopping_app
 
 				products = await connection.Table<Product>().ToListAsync();
 
+				// Product stores only StorageLocationID. Resolve the friendly name
+				// once here so every card can display it and the list can sort by it.
+				var storageLocations = await database.GetStorageLocationsAsync();
+				var storageLocationNames = storageLocations.ToDictionary(
+					location => location.ID,
+					location => location.Name);
+
+				foreach (var product in products)
+				{
+					product.StorageLocationName =
+						product.StorageLocationID is int storageLocationId
+						&& storageLocationNames.TryGetValue(
+							storageLocationId,
+							out string? storageLocationName)
+							? storageLocationName
+							: "Unassigned";
+				}
+
 				StopHighlights();
 
 				// Set the target before replacing ItemsSource because
@@ -159,7 +178,7 @@ namespace shopping_app
 				needsRefresh = true;
 				StatusLabel.Text = "Could not load products.";
 
-				System.Diagnostics.Debug.WriteLine(
+				DevelopmentDebugArtifacts.WriteLine(
 					$"Error loading products: {ex}");
 
 				await DisplayAlertAsync(
@@ -187,7 +206,7 @@ namespace shopping_app
 			var displayedProducts = ProductListFilter.FilterAndSort(
 				products,
 				searchText,
-				sortAscending);
+				sortMode);
 
 			ProductsView.ItemsSource = displayedProducts;
 
@@ -197,13 +216,26 @@ namespace shopping_app
 				displayedProducts.Count,
 				searchText);
 
-			SortProductsButton.Text = sortAscending ? "A → Z" : "Z → A";
+			SortProductsButton.Text = sortMode switch
+			{
+				ProductSortMode.NameAscending => "A → Z",
+				ProductSortMode.NameDescending => "Z → A",
+				ProductSortMode.StorageLocation => "Loc",
+				_ => "A → Z"
+			};
 
 			SemanticProperties.SetDescription(
 				SortProductsButton,
-				sortAscending
-					? "Sorted A to Z. Tap to sort Z to A."
-					: "Sorted Z to A. Tap to sort A to Z.");
+				sortMode switch
+				{
+					ProductSortMode.NameAscending =>
+						"Sorted A to Z. Tap to sort Z to A.",
+					ProductSortMode.NameDescending =>
+						"Sorted Z to A. Tap to sort by storage location.",
+					ProductSortMode.StorageLocation =>
+						"Sorted by storage location. Tap to sort A to Z.",
+					_ => "Sort products."
+				});
 
 			return displayedProducts.Count;
 		}
@@ -229,7 +261,16 @@ namespace shopping_app
 		private void OnSortProductsClicked(object? sender, EventArgs e)
 		{
 			StopHighlights();
-			sortAscending = !sortAscending;
+
+			// Cycle through all three user-facing sort choices.
+			sortMode = sortMode switch
+			{
+				ProductSortMode.NameAscending => ProductSortMode.NameDescending,
+				ProductSortMode.NameDescending => ProductSortMode.StorageLocation,
+				ProductSortMode.StorageLocation => ProductSortMode.NameAscending,
+				_ => ProductSortMode.NameAscending
+			};
+
 			int displayedCount = ApplyFilterAndSort();
 
 			// An explicit sort change starts at the beginning of the
@@ -264,7 +305,7 @@ namespace shopping_app
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(ex);
+				DevelopmentDebugArtifacts.WriteLine(ex);
 
 				await DisplayAlertAsync(
 					"Add Product",
@@ -306,7 +347,7 @@ namespace shopping_app
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine(
+				DevelopmentDebugArtifacts.WriteLine(
 					$"Could not open product for editing: {ex}");
 
 				await DisplayAlertAsync(

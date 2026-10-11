@@ -427,3 +427,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Local database and application debug output used during manual testing.
+DebugData/*
+!DebugData/.gitkeep
