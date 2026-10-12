@@ -81,7 +81,9 @@ namespace shopping_app
 			}
 		}
 
-		private static string DescribePage(Page page) =>
-			$"{page.GetType().Name}(Title=\"{page.Title}\")";
+		private static string DescribePage(Page? page) =>
+			page is null
+				? "(null page)"
+				: $"{page.GetType().Name}(Title=\"{page.Title}\")";
 	}
 }

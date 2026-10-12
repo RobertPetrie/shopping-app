@@ -44,7 +44,9 @@ namespace shopping_app.WinUI
 					: string.Join(
 						" -> ",
 						shell.Navigation.NavigationStack.Select(
-							page => $"{page.GetType().Name}(Title=\"{page.Title}\")"));
+							page => page is null
+								? "(null page)"
+								: $"{page.GetType().Name}(Title=\"{page.Title}\")"));
 
 				DevelopmentDebugArtifacts.WriteLine(
 					$"[WINUI UNHANDLED] Shell={shell?.CurrentState?.Location}; "
