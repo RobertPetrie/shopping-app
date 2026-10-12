@@ -23,6 +23,7 @@
                 VerticalOptions="Center">
 
                 <Label
+                    x:Name="PageTitleLabel"
                     Text="Products"
                     FontSize="30"
                     FontAttributes="Bold" />
@@ -143,11 +144,27 @@
                                     TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
 
                                 <Label
+                                    x:Name="EditChevron"
                                     Grid.Column="2"
                                     Text="›"
                                     FontSize="28"
                                     VerticalOptions="Center"
                                     TextColor="{AppThemeBinding Light=#666666, Dark=#C7C7C7}" />
+
+                                <!--
+                                    This button is shown only when this same Products page
+                                    is being reused to choose products for a shopping list.
+                                -->
+                                <Button
+                                    x:Name="AddToShoppingListButton"
+                                    AutomationId="AddProductToShoppingListButton"
+                                    Grid.Column="2"
+                                    IsVisible="False"
+                                    StyleClass="FilledTonalButton"
+                                    Text="Add to list"
+                                    Padding="14,8"
+                                    Clicked="OnAddProductToShoppingListClicked"
+                                    SemanticProperties.Description="Add this product to the shopping list" />
                             </Grid>
                         </Border>
                     </Grid>

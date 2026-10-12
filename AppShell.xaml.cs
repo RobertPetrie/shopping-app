@@ -18,6 +18,12 @@ namespace shopping_app
 			Routing.RegisterRoute(
 				nameof(ShoppingListProductsPage),
 				typeof(ShoppingListProductsPage));
+
+			// Reuse MainPage as a pushed product picker when adding Products to a
+			// Shopping List. The normal Products tab keeps its original behavior.
+			Routing.RegisterRoute(
+				MainPage.ShoppingListSelectionRoute,
+				typeof(MainPage));
 		}
 	}
 }

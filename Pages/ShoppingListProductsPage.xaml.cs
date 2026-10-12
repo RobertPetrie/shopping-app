@@ -286,12 +286,32 @@ namespace shopping_app.Pages
 
 		private async void OnAddProductClicked(object? sender, EventArgs e)
 		{
-			// The screen and relationship are ready. Product selection will be
-			// implemented as the next focused shopping-list feature.
-			await DisplayAlertAsync(
-				"Add Product",
-				"Product selection for this shopping list is the next piece to build.",
-				"OK");
+			if (shoppingListID <= 0)
+			{
+				return;
+			}
+
+			try
+			{
+				// Reuse the normal Products page in a special selection mode rather
+				// than maintaining a second copy of product search/sort UI.
+				await Shell.Current.GoToAsync(
+					shopping_app.MainPage.ShoppingListSelectionRoute,
+					new ShellNavigationQueryParameters
+					{
+						["ShoppingListForProductSelection"] = shoppingListID
+					});
+			}
+			catch (Exception ex)
+			{
+				DevelopmentDebugArtifacts.WriteLine(
+					$"Could not open product selection: {ex}");
+
+				await DisplayAlertAsync(
+					"Add Product",
+					"Could not open the product list. Please try again.",
+					"OK");
+			}
 		}
 	}
 }

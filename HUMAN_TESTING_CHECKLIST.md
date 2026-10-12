@@ -97,7 +97,14 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Changing the tax rate recalculates and saves TotalCost for existing shopping-list records.
 - [ ] Shopping List Product search filters immediately by Product name.
 - [ ] The Shopping List Products screen includes the same circular add button pattern as the other list screens.
-- [ ] The Shopping List Products add button currently shows a placeholder message for adding products.
+- [ ] Tapping the Shopping List Products add button opens the existing Products list in "Add Products" mode.
+- [ ] Product search and all three Product sort modes still work while choosing products for a shopping list.
+- [ ] Product rows show an "Add to list" button instead of the normal edit chevron in selection mode.
+- [ ] Products already on the selected shopping list show "Added" and cannot be added twice.
+- [ ] Tapping "Add to list" creates a ShoppingListProduct row with PickedUp = 0 and Price = 0.
+- [ ] The selector stays open after an item is added so several products can be added in one visit.
+- [ ] Back from the product selector returns to Shopping List Products and the newly added items appear.
+- [ ] Opening the normal Products tab still shows the regular edit chevrons and + button with no "Add to list" buttons.
 - [ ] Back navigation returns to the Shopping Lists screen.
 
 ## Test Data

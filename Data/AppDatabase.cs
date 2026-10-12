@@ -1031,6 +1031,32 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
+		/// Return Product IDs already linked to one Shopping List so the product
+		/// picker can disable items that have already been added.
+		/// </summary>
+		public async Task<List<int>> GetShoppingListProductIdsAsync(
+			int shoppingListID)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var rows = await database
+				.Table<ShoppingListProduct>()
+				.Where(item => item.ShoppingListID == shoppingListID)
+				.ToListAsync()
+				.ConfigureAwait(false);
+
+			return rows
+				.Select(item => item.ProductID)
+				.ToList();
+		}
+
+		/// <summary>
 		/// Link an existing product to an existing shopping list.
 		/// A product can appear only once in a particular list.
 		/// </summary>

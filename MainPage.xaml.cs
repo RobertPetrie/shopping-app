@@ -12,8 +12,15 @@ namespace shopping_app
 	{
 		private const string HighlightAnimation = "SavedProductHighlight";
 
+		// Register this route separately from the Products tab so the same page
+		// can be pushed on top of a shopping list as a product picker.
+		public const string ShoppingListSelectionRoute =
+			"SelectProductForShoppingList";
+
+		private AppDatabase? database;
 		private bool isLoading;
 		private bool isOpeningForm;
+		private bool isAddingToShoppingList;
 		private bool isPageActive;
 		private bool needsRefresh = true;
 
@@ -22,7 +29,9 @@ namespace shopping_app
 		private ProductSortMode sortMode = ProductSortMode.NameAscending;
 
 		private List<Product> products = new();
+		private readonly HashSet<int> shoppingListProductIds = new();
 
+		private int? shoppingListIdForSelection;
 		private int? savedProductId;
 		private int? highlightProductId;
 		private bool scrollRequested;
@@ -39,8 +48,12 @@ namespace shopping_app
 			Loaded += OnPageLoaded;
 		}
 
+		private bool IsShoppingListSelectionMode =>
+			shoppingListIdForSelection.HasValue;
+
 		/// <summary>
-		/// Receive the ID returned after a successful save.
+		/// Receive either the ID returned after a product save or the Shopping
+		/// List ID that turns this normal Products page into a product picker.
 		/// </summary>
 		public void ApplyQueryAttributes(IDictionary<string, object> query)
 		{
@@ -49,6 +62,27 @@ namespace shopping_app
 			{
 				savedProductId = id;
 				needsRefresh = true;
+				QueueRefresh();
+			}
+
+			if (query.TryGetValue(
+					"ShoppingListForProductSelection",
+					out var shoppingListValue)
+				&& shoppingListValue is int shoppingListId
+				&& shoppingListId > 0)
+			{
+				shoppingListIdForSelection = shoppingListId;
+
+				// Keep the familiar Product list, but make it clear that this copy
+				// is being used to add existing Products to one Shopping List.
+				Title = "Add Products";
+				PageTitleLabel.Text = "Add Products";
+				AddProductButton.IsVisible = false;
+				Shell.SetNavBarIsVisible(this, true);
+				Shell.SetTabBarIsVisible(this, false);
+
+				needsRefresh = true;
+				ConfigureLoadedRows();
 				QueueRefresh();
 			}
 		}
@@ -109,7 +143,7 @@ namespace shopping_app
 					?? throw new InvalidOperationException(
 						"The page's app services are unavailable.");
 
-				var database = services.GetRequiredService<AppDatabase>();
+				database ??= services.GetRequiredService<AppDatabase>();
 				var connection = await database.GetConnectionAsync();
 
 				products = await connection.Table<Product>().ToListAsync();
@@ -130,6 +164,17 @@ namespace shopping_app
 							out string? storageLocationName)
 							? storageLocationName
 							: "Unassigned";
+				}
+
+				shoppingListProductIds.Clear();
+
+				if (shoppingListIdForSelection is int shoppingListId)
+				{
+					foreach (int productId in
+						await database.GetShoppingListProductIdsAsync(shoppingListId))
+					{
+						shoppingListProductIds.Add(productId);
+					}
 				}
 
 				StopHighlights();
@@ -290,7 +335,7 @@ namespace shopping_app
 		/// </summary>
 		private async void OnAddProductClicked(object? sender, EventArgs e)
 		{
-			if (isLoading || isOpeningForm)
+			if (IsShoppingListSelectionMode || isLoading || isOpeningForm)
 			{
 				return;
 			}
@@ -325,6 +370,13 @@ namespace shopping_app
 		/// </summary>
 		private async void OnProductTapped(object? sender, TappedEventArgs e)
 		{
+			// In shopping-list selection mode, the explicit Add to list button
+			// is the action. Card taps must not accidentally open the edit form.
+			if (IsShoppingListSelectionMode)
+			{
+				return;
+			}
+
 			// Ignore repeated taps and taps while the list is loading.
 			if (isLoading || isOpeningForm || e.Parameter is not Product product)
 			{
@@ -362,13 +414,113 @@ namespace shopping_app
 			}
 		}
 
-		// Disable actions while loading or opening another page.
+		// Disable actions while loading, opening a form, or writing a
+		// ShoppingListProduct row.
 		private void UpdateButtons()
 		{
-			AddProductButton.IsEnabled = !isLoading && !isOpeningForm;
+			AddProductButton.IsVisible = !IsShoppingListSelectionMode;
+			AddProductButton.IsEnabled =
+				!isLoading && !isOpeningForm && !isAddingToShoppingList;
 
 			SortProductsButton.IsEnabled =
-				!isLoading && !isOpeningForm && products.Count > 0;
+				!isLoading
+				&& !isOpeningForm
+				&& !isAddingToShoppingList
+				&& products.Count > 0;
+
+			ConfigureLoadedRows();
+		}
+
+		private async void OnAddProductToShoppingListClicked(
+			object? sender,
+			EventArgs e)
+		{
+			if (!IsShoppingListSelectionMode
+				|| shoppingListIdForSelection is not int shoppingListId
+				|| sender is not Button button
+				|| button.BindingContext is not Product product
+				|| shoppingListProductIds.Contains(product.ID)
+				|| isLoading
+				|| isAddingToShoppingList)
+			{
+				return;
+			}
+
+			isAddingToShoppingList = true;
+			UpdateButtons();
+
+			try
+			{
+				if (database is null)
+				{
+					var services = Handler?.MauiContext?.Services
+						?? throw new InvalidOperationException(
+							"The page's app services are unavailable.");
+
+					database = services.GetRequiredService<AppDatabase>();
+				}
+
+				// A newly selected Product belongs to the list immediately, but it
+				// begins unchecked with a $0 price until the shopper picks it up.
+				await database.AddShoppingListProductAsync(
+					shoppingListId,
+					product.ID,
+					price: 0m);
+
+				shoppingListProductIds.Add(product.ID);
+				SemanticScreenReader.Announce(
+					$"Added {product.Name} to shopping list.");
+			}
+			catch (Exception ex)
+			{
+				DevelopmentDebugArtifacts.WriteLine(
+					$"Could not add product to shopping list: {ex}");
+
+				await DisplayAlertAsync(
+					"Add to Shopping List",
+					"Could not add this product. Please try again.",
+					"OK");
+			}
+			finally
+			{
+				isAddingToShoppingList = false;
+				UpdateButtons();
+			}
+		}
+
+		private void ConfigureLoadedRows()
+		{
+			foreach (var row in loadedRows)
+			{
+				ConfigureProductRow(row);
+			}
+		}
+
+		private void ConfigureProductRow(Grid row)
+		{
+			var addButton = row.FindByName<Button>("AddToShoppingListButton");
+			var editChevron = row.FindByName<Label>("EditChevron");
+
+			if (addButton is not null)
+			{
+				addButton.IsVisible = IsShoppingListSelectionMode;
+
+				bool alreadyAdded =
+					row.BindingContext is Product product
+					&& shoppingListProductIds.Contains(product.ID);
+
+				addButton.Text = alreadyAdded ? "Added" : "Add to list";
+				addButton.IsEnabled =
+					IsShoppingListSelectionMode
+					&& !alreadyAdded
+					&& !isLoading
+					&& !isAddingToShoppingList;
+			}
+
+			if (editChevron is not null)
+			{
+				editChevron.IsVisible = !IsShoppingListSelectionMode;
+			}
 		}
 
 		// Register rows when they enter the visual tree.
@@ -377,6 +529,7 @@ namespace shopping_app
 			if (sender is Grid row)
 			{
 				loadedRows.Add(row);
+				ConfigureProductRow(row);
 				Dispatcher.Dispatch(TryHighlightSavedProduct);
 			}
 		}
@@ -403,6 +556,7 @@ namespace shopping_app
 				if (row.IsLoaded)
 				{
 					loadedRows.Add(row);
+					ConfigureProductRow(row);
 					Dispatcher.Dispatch(TryHighlightSavedProduct);
 				}
 			}
