@@ -3,8 +3,14 @@ name: Build Shopping App
 on:
   push:
     branches: [main]
+    # Workflow-only maintenance should not spend build minutes.
+    paths-ignore:
+      - '.github/workflows/**'
   pull_request:
     branches: [main]
+    # A pull request that only changes workflow files does not need the app build.
+    paths-ignore:
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:

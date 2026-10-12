@@ -1,0 +1,74 @@
+name: Build Android APK
+
+# This workflow is deliberately manual so Android builds only use Actions
+# minutes when Robert chooses to make a phone-installable build.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-apk:
+    name: Build installable Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v5
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI Android workload
+        run: dotnet workload install maui-android
+
+      # Keep the same development-only debug signing key between builds when
+      # possible. That lets a newly downloaded APK update the previous test
+      # install instead of Android treating every build as a different signer.
+      # Never use this debug key for a production/store release.
+      - name: Restore development Android signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: shopping-app-android-debug-keystore-v1
+
+      - name: Restore Android dependencies
+        run: >
+          dotnet restore shopping-app.csproj
+          -p:TargetFrameworks=net10.0-android
+
+      - name: Build signed debug APK
+        run: >
+          dotnet publish shopping-app.csproj
+          --configuration Debug
+          --framework net10.0-android
+          -p:TargetFrameworks=net10.0-android
+          -p:AndroidPackageFormats=apk
+          --no-restore
+
+      - name: Prepare APK for download
+        shell: bash
+        run: |
+          mkdir -p apk-output
+          APK_PATH="$(find bin/Debug/net10.0-android -type f -name '*-Signed.apk' | head -n 1)"
+
+          if [ -z "$APK_PATH" ]; then
+            echo "No signed APK was produced."
+            find bin/Debug/net10.0-android -type f -name '*.apk' -print
+            exit 1
+          fi
+
+          cp "$APK_PATH" apk-output/shopping-app.apk
+          echo "Prepared $APK_PATH as apk-output/shopping-app.apk"
+
+      - name: Upload phone-installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: shopping-app-android-apk
+          path: apk-output/shopping-app.apk
+          if-no-files-found: error
+          retention-days: 14
