@@ -237,6 +237,7 @@ namespace shopping_app.Data
                             "ShoppingListID" INTEGER NOT NULL,
                             "ProductID" INTEGER NOT NULL,
                             "Price" INTEGER NOT NULL,
+                            "PickedUp" INTEGER NOT NULL DEFAULT 0,
                             "CreatedOn" INTEGER NOT NULL,
 
                             PRIMARY KEY ("ShoppingListID", "ProductID"),
@@ -252,6 +253,25 @@ namespace shopping_app.Data
                                 ON UPDATE RESTRICT
                         );
                         """).ConfigureAwait(false);
+
+					int shoppingListProductPickedUpColumnExists =
+						await newConnection.ExecuteScalarAsync<int>(
+							"""
+                            SELECT COUNT(*)
+                            FROM pragma_table_info('ShoppingListProduct')
+                            WHERE name = 'PickedUp';
+                            """).ConfigureAwait(false);
+
+					if (shoppingListProductPickedUpColumnExists == 0)
+					{
+						// Existing shopping-list products were created before per-item
+						// pickup tracking existed. Mark them not picked up by default.
+						await newConnection.ExecuteAsync(
+							"""
+                            ALTER TABLE "ShoppingListProduct"
+                            ADD COLUMN "PickedUp" INTEGER NOT NULL DEFAULT 0;
+                            """).ConfigureAwait(false);
+					}
 
 					// Support lookups by ProductID.
 					await newConnection.ExecuteAsync(
@@ -759,7 +779,10 @@ namespace shopping_app.Data
 			{
 				ShoppingListID = shoppingListID,
 				ProductID = productID,
-				Price = price
+				Price = price,
+
+				// A product starts unchecked until the shopper picks it up.
+				PickedUp = false
 			};
 
 			var database = await GetConnectionAsync().ConfigureAwait(false);
