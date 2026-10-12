@@ -26,6 +26,10 @@ namespace shopping_app.Data
 			int categoryCount = await SeedProductCategoriesAsync(connection);
 			int storageLocationCount = await SeedStorageLocationsAsync(connection);
 
+			// Development data uses Ontario's HST rate so tax calculations have
+			// a realistic default that can still be edited in Settings.
+			int taxRateCount = await SeedTaxRateAsync(database);
+
 			// Product rows can now safely resolve the lookup names to real IDs.
 			int productCount = await SeedProductsAsync(database, connection);
 
@@ -33,11 +37,32 @@ namespace shopping_app.Data
 				database,
 				connection);
 
+			// Add child rows only after Products and Shopping Lists exist.
+			int shoppingListProductCount = await SeedShoppingListProductsAsync(
+				database,
+				connection);
+
+			// Keep Shopping_List.TotalCost synchronized with the seeded picked-up
+			// item prices and the seeded Ontario HST rate.
+			var taxRate = await database.GetTaxRateAsync();
+			await database.RecalculateAllShoppingListTotalsAsync(
+				taxRate?.RateBasisPoints ?? 0);
+
 			DevelopmentDebugArtifacts.WriteLine(
 				$"Test data reset: created {categoryCount} categories, "
 					+ $"{storageLocationCount} storage locations, "
-					+ $"{productCount} products and "
-					+ $"{shoppingListCount} shopping lists.");
+					+ $"{taxRateCount} tax rate, "
+					+ $"{productCount} products, "
+					+ $"{shoppingListCount} shopping lists and "
+					+ $"{shoppingListProductCount} shopping-list products.");
+		}
+
+		private static async Task<int> SeedTaxRateAsync(AppDatabase database)
+		{
+			// Ontario HST is 13%. Store the percentage through AppDatabase so the
+			// same validation and integer-basis-point representation are exercised.
+			await database.SetTaxRateAsync("Ontario HST", 13.00m);
+			return 1;
 		}
 
 		private static async Task<int> SeedProductCategoriesAsync(
@@ -314,6 +339,68 @@ namespace shopping_app.Data
 					item.PickedUp);
 
 				createdCount++;
+			}
+
+			return createdCount;
+		}
+
+		private static async Task<int> SeedShoppingListProductsAsync(
+			AppDatabase database,
+			SQLite.SQLiteAsyncConnection connection)
+		{
+			// Give every sample shopping list a useful product checklist.
+			// Completed shopping trips are fully checked, while the pending trip
+			// intentionally keeps a mix of checked and unchecked rows.
+			var shoppingLists = await connection
+				.Table<ShoppingList>()
+				.OrderByDescending(list => list.ShoppingDateStorage)
+				.ToListAsync();
+
+			var products = await connection
+				.Table<Product>()
+				.OrderBy(product => product.ID)
+				.ToListAsync();
+
+			const int productsPerList = 8;
+			int createdCount = 0;
+
+			for (int listIndex = 0; listIndex < shoppingLists.Count; listIndex++)
+			{
+				var shoppingList = shoppingLists[listIndex];
+
+				// Rotate through the product catalog so the historical sample lists
+				// do not all contain the exact same eight products.
+				int startingProductIndex = (listIndex * 3) % products.Count;
+
+				for (int itemIndex = 0; itemIndex < productsPerList; itemIndex++)
+				{
+					var product = products[
+						(startingProductIndex + itemIndex) % products.Count];
+
+					await database.AddShoppingListProductAsync(
+						shoppingList.ID,
+						product.ID,
+						price: 0m);
+
+					bool pickedUp = shoppingList.PickedUp
+						|| (!shoppingList.PickedUp && itemIndex < 2);
+
+					if (pickedUp)
+					{
+						// Use predictable but varied prices so Subtotal and Total are
+						// immediately useful during manual testing.
+						decimal samplePrice = 1.99m
+							+ (itemIndex * 1.15m)
+							+ (listIndex * 0.10m);
+
+						await database.PickUpShoppingListProductAsync(
+							shoppingList.ID,
+							product.ID,
+							samplePrice);
+					}
+
+					createdCount++;
+				}
 			}
 
 			return createdCount;

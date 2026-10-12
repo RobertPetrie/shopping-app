@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:models="clr-namespace:shopping_app.Models"
+    x:Class="shopping_app.Pages.ShoppingListProductsPage"
+    Title="Shopping List"
+    Shell.NavBarIsVisible="True"
+    Shell.TabBarIsVisible="False">
+
+    <!-- Match the other list screens: heading/search, rows, then add. -->
+    <Grid
+        Padding="24,20"
+        RowDefinitions="Auto,*,Auto"
+        RowSpacing="18">
+
+        <Grid
+            Grid.Row="0"
+            RowDefinitions="Auto,Auto"
+            ColumnDefinitions="Auto,*,Auto"
+            RowSpacing="12"
+            ColumnSpacing="16">
+
+            <VerticalStackLayout
+                Grid.ColumnSpan="2"
+                Spacing="2"
+                VerticalOptions="Center">
+
+                <Label
+                    Text="Shopping List"
+                    FontSize="30"
+                    FontAttributes="Bold" />
+
+                <Label
+                    x:Name="StatusLabel"
+                    Text="Loading products..."
+                    FontSize="14"
+                    TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+            </VerticalStackLayout>
+
+            <!-- Keep the running amounts pinned to the upper-right corner. -->
+            <VerticalStackLayout
+                Grid.Column="2"
+                Spacing="2"
+                HorizontalOptions="End"
+                VerticalOptions="Start">
+
+                <Label
+                    x:Name="SubtotalLabel"
+                    Text="Subtotal: $0.00"
+                    FontSize="14"
+                    HorizontalTextAlignment="End"
+                    SemanticProperties.Description="Picked-up item subtotal before tax" />
+
+                <Label
+                    x:Name="TotalLabel"
+                    Text="Total: $0.00"
+                    FontSize="18"
+                    FontAttributes="Bold"
+                    HorizontalTextAlignment="End"
+                    SemanticProperties.Description="Picked-up item total including tax" />
+            </VerticalStackLayout>
+
+            <SearchBar
+                x:Name="ProductSearchBar"
+                AutomationId="ShoppingListProductSearchBar"
+                Grid.Row="1"
+                Grid.ColumnSpan="2"
+                Placeholder="Search products"
+                IsSpellCheckEnabled="False"
+                IsTextPredictionEnabled="False"
+                VerticalOptions="Center"
+                TextChanged="OnSearchTextChanged"
+                SemanticProperties.Description="Search products on this shopping list" />
+
+            <!-- Match the other list screens: A-Z, Z-A, then pickup status. -->
+            <Button
+                x:Name="SortShoppingListProductsButton"
+                Grid.Row="1"
+                Grid.Column="2"
+                StyleClass="FilledTonalButton"
+                Text="A → Z"
+                FontSize="14"
+                Padding="18,10"
+                MinimumWidthRequest="92"
+                VerticalOptions="Center"
+                Clicked="OnSortProductsClicked"
+                SemanticProperties.Description="Sorted A to Z. Tap to sort Z to A." />
+        </Grid>
+
+        <CollectionView
+            x:Name="ProductsView"
+            Grid.Row="1"
+            SelectionMode="None"
+            ItemsLayout="VerticalList">
+
+            <CollectionView.EmptyView>
+                <Border
+                    StyleClass="SurfaceContainer,Rounded"
+                    Padding="24"
+                    Margin="0,24,0,0">
+
+                    <VerticalStackLayout
+                        Spacing="6"
+                        HorizontalOptions="Center">
+
+                        <Label
+                            Text="No matching products"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            HorizontalTextAlignment="Center" />
+
+                        <Label
+                            Text="Try another search or add a product to this shopping list."
+                            FontSize="14"
+                            TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}"
+                            HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:ShoppingListProductListItem">
+                    <Grid
+                        Padding="3"
+                        Margin="0,0,0,10">
+
+                        <Border
+                            StyleClass="SurfaceContainer,Rounded"
+                            Padding="18,14">
+
+                            <Border.Shadow>
+                                <Shadow
+                                    Opacity="0.12"
+                                    Radius="8"
+                                    Offset="0,3" />
+                            </Border.Shadow>
+
+                            <Grid
+                                ColumnDefinitions="*,Auto"
+                                ColumnSpacing="16">
+
+                                <Label
+                                    Text="{Binding ProductName}"
+                                    FontSize="18"
+                                    FontAttributes="Bold"
+                                    VerticalOptions="Center" />
+
+                                <!-- Empty maps to SQLite 0; checked maps to SQLite 1. -->
+                                <CheckBox
+                                    Grid.Column="1"
+                                    IsChecked="{Binding PickedUp, Mode=OneWay}"
+                                    VerticalOptions="Center"
+                                    CheckedChanged="OnPickedUpChanged"
+                                    SemanticProperties.Description="Picked up" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <Button
+            x:Name="AddProductButton"
+            AutomationId="AddShoppingListProductButton"
+            Grid.Row="2"
+            StyleClass="FilledTonalButton"
+            Text="+"
+            FontSize="30"
+            Padding="0"
+            WidthRequest="56"
+            HeightRequest="56"
+            MinimumWidthRequest="56"
+            MinimumHeightRequest="56"
+            CornerRadius="28"
+            HorizontalOptions="Start"
+            Clicked="OnAddProductClicked"
+            SemanticProperties.Description="Add a product to this shopping list" />
+
+        <!--
+            Keep the price prompt inside this page instead of pushing a modal
+            ContentPage. Windows can fail while adding a Shell modal page, while
+            this overlay gives the same centered popup without changing navigation.
+        -->
+        <Grid
+            x:Name="PricePopupOverlay"
+            Grid.RowSpan="3"
+            ZIndex="100"
+            IsVisible="False"
+            BackgroundColor="#99000000"
+            Padding="24">
+
+            <Border
+                StyleClass="SurfaceContainer,Rounded"
+                Padding="24"
+                MaximumWidthRequest="420"
+                MinimumWidthRequest="300"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+
+                <Border.Shadow>
+                    <Shadow
+                        Opacity="0.25"
+                        Radius="16"
+                        Offset="0,6" />
+                </Border.Shadow>
+
+                <VerticalStackLayout Spacing="16">
+                    <!-- The Product name is the popup heading; no extra title is needed. -->
+                    <Label
+                        x:Name="PricePopupProductNameLabel"
+                        FontSize="20"
+                        FontAttributes="Bold" />
+
+                    <Label
+                        Text="Enter the price paid for this item."
+                        FontSize="14"
+                        TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+
+                    <Entry
+                        x:Name="PricePopupEntry"
+                        AutomationId="PickedUpPriceEntry"
+                        Placeholder="0.00"
+                        Keyboard="Numeric"
+                        ReturnType="Done"
+                        Completed="OnPricePopupCompleted"
+                        TextChanged="OnPricePopupTextChanged"
+                        SemanticProperties.Description="Price paid for this product" />
+
+                    <Label
+                        x:Name="PricePopupValidationLabel"
+                        IsVisible="False"
+                        FontSize="14"
+                        TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}" />
+
+                    <Grid
+                        ColumnDefinitions="*,*"
+                        ColumnSpacing="12">
+
+                        <!-- Put the positive action first and use compact icon buttons. -->
+                        <Button
+                            StyleClass="FilledTonalButton"
+                            Text="✓"
+                            FontSize="22"
+                            Clicked="OnPricePopupSaveClicked"
+                            SemanticProperties.Description="Save the price and mark the item picked up" />
+
+                        <Button
+                            Grid.Column="1"
+                            StyleClass="FilledTonalButton"
+                            Text="✕"
+                            FontSize="22"
+                            Clicked="OnPricePopupCancelClicked"
+                            SemanticProperties.Description="Cancel entering the price" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+    </Grid>
+
+</ContentPage>

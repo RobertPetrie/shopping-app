@@ -11,6 +11,7 @@ namespace shopping_app.Pages
 	public partial class ShoppingListsPage : ContentPage
 	{
 		private bool isLoading;
+		private bool isOpeningList;
 		private bool isPageActive;
 		private bool needsRefresh = true;
 
@@ -167,6 +168,46 @@ namespace shopping_app.Pages
 			}
 		}
 
+		private async void OnShoppingListTapped(
+			object? sender,
+			TappedEventArgs e)
+		{
+			if (isLoading || isOpeningList || e.Parameter is not ShoppingList shoppingList)
+			{
+				return;
+			}
+
+			isOpeningList = true;
+			UpdateButtons();
+
+			try
+			{
+				// Pass the selected list to the next screen so it can load only
+				// ShoppingListProduct rows that belong to this shopping trip.
+				await Shell.Current.GoToAsync(
+					nameof(ShoppingListProductsPage),
+					new ShellNavigationQueryParameters
+					{
+						["ShoppingListToOpen"] = shoppingList
+					});
+			}
+			catch (Exception ex)
+			{
+				DevelopmentDebugArtifacts.WriteLine(
+					$"Could not open shopping list products: {ex}");
+
+				await DisplayAlertAsync(
+					"Shopping List",
+					"Could not open this shopping list. Please try again.",
+					"OK");
+			}
+			finally
+			{
+				isOpeningList = false;
+				UpdateButtons();
+			}
+		}
+
 		private async void OnAddShoppingListClicked(
 			object? sender,
 			EventArgs e)
@@ -181,10 +222,10 @@ namespace shopping_app.Pages
 
 		private void UpdateButtons()
 		{
-			AddShoppingListButton.IsEnabled = !isLoading;
+			AddShoppingListButton.IsEnabled = !isLoading && !isOpeningList;
 
 			SortShoppingListsButton.IsEnabled =
-				!isLoading && shoppingLists.Count > 0;
+				!isLoading && !isOpeningList && shoppingLists.Count > 0;
 		}
 	}
 }

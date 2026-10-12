@@ -74,6 +74,49 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Shopping-list empty state looks correct when there are no matches.
 - [ ] Add Shopping List button is visible and styled correctly.
 - [ ] Add Shopping List button currently shows the placeholder message instead of creating a blank record.
+- [ ] Tapping a shopping-list card opens that list's Product screen.
+- [ ] The Shopping List Products screen shows only ShoppingListProduct rows related to the selected shopping list.
+- [ ] Each row displays the related Product name.
+- [ ] Each row shows a checkbox on the right.
+- [ ] A stored PickedUp value of 0 appears unchecked.
+- [ ] A stored PickedUp value of 1 appears checked.
+- [ ] Opening the screen with pre-checked seeded items does not open the price popup automatically.
+- [ ] Scrolling/recycling rows does not open the price popup unless the user actually changes a checkbox.
+- [ ] Tapping an unchecked box opens a centered price-entry popup before the item is saved as picked up.
+- [ ] On Windows, the price-entry popup opens without a Shell/modal-navigation COMException.
+- [ ] The price popup uses the Product name as its heading with no separate "Item picked up" header.
+- [ ] The price popup shows a price field, then a green checkmark button followed by a matching green X button.
+- [ ] Saving a valid price stores the amount as whole cents and saves PickedUp = 1.
+- [ ] Canceling the price popup leaves the item unchecked and does not change its stored price.
+- [ ] Invalid, blank, negative, or more-than-two-decimal price input shows validation feedback and does not close the popup.
+- [ ] Tapping a checked box saves PickedUp = 0 without opening the price popup.
+- [ ] Unchecking an item preserves its previously entered price.
+- [ ] The Shopping List Products screen shows Subtotal and Total in the upper-right corner above the search/sort row.
+- [ ] The Shopping List Products sort button appears to the right of search where the totals previously sat.
+- [ ] The Shopping List Products sort button cycles A → Z → Z → A → ✓ → A → Z.
+- [ ] The ✓ sort uses a plain checkmark icon with no enclosing square and groups unpicked products first and picked-up products underneath, alphabetized within each group.
+- [ ] Checking or unchecking an item while ✓ sort is active immediately moves it into the correct group.
+- [ ] Search works together with A → Z, Z → A, and ✓ pickup-status sorting.
+- [ ] Subtotal includes only products currently marked picked up.
+- [ ] Total adds sales tax only for picked-up products whose Product Category is taxable.
+- [ ] Checking an item with a saved price updates Subtotal and Total immediately after the price popup is saved.
+- [ ] Unchecking an item removes its price and tax contribution from the running Subtotal and Total immediately.
+- [ ] The calculated Total is also saved to the selected Shopping_List.TotalCost record.
+- [ ] Returning to the Shopping Lists screen shows the same saved Total on that list's card.
+- [ ] Changing the tax rate recalculates and saves TotalCost for existing shopping-list records.
+- [ ] Shopping List Product search filters immediately by Product name.
+- [ ] The Shopping List Products screen includes the same circular add button pattern as the other list screens.
+- [ ] Tapping the Shopping List Products add button opens the existing Products list in "Add Products" mode.
+- [ ] Product search and all three Product sort modes still work while choosing products for a shopping list.
+- [ ] Product rows show an "Add to list" button instead of the normal edit chevron in selection mode.
+- [ ] Products already on the selected shopping list show "Added" and cannot be added twice.
+- [ ] Tapping "Add to list" creates a ShoppingListProduct row with PickedUp = 0 and Price = 0.
+- [ ] The selector stays open after an item is added so several products can be added in one visit.
+- [ ] Back from the product selector returns to Shopping List Products and the newly added items appear.
+- [ ] On Windows, repeatedly opening Add Products and pressing Back does not throw a PlatformView/null-handler exception.
+- [ ] Immediately sorting Shopping List Products after returning from Add Products does not crash.
+- [ ] Opening the normal Products tab still shows the regular edit chevrons and + button with no "Add to list" buttons.
+- [ ] Back navigation returns to the Shopping Lists screen.
 
 ## Test Data
 
@@ -82,8 +125,14 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] With `ResetTestDataOnStartup = true`, edits made to sample products are replaced by the original sample values after restarting.
 - [ ] With `ResetTestDataOnStartup = true`, user-created shopping lists are removed after restarting the app.
 - [ ] After each reset, exactly 7 Product Categories and 9 Storage Locations are recreated before using the Product form.
+- [ ] After each reset, exactly one TaxRate row is recreated as Ontario HST at 13%.
+- [ ] Seeded ShoppingListProduct rows that are already picked up have non-zero prices so running totals are visible.
 - [ ] After each reset, exactly 28 sample products and 12 sample shopping lists are recreated.
-- [ ] The pending sample shopping list appears with no total entered.
+- [ ] The pending sample shopping list shows a stored running total based on its currently picked-up products.
+- [ ] Every one of the 12 sample shopping lists contains exactly 8 ShoppingListProduct rows.
+- [ ] Completed sample shopping lists open with all 8 product checkboxes checked.
+- [ ] The pending October 11, 2026 sample list contains 8 ShoppingListProduct rows with 2 checked and 6 unchecked examples.
+- [ ] Different sample shopping lists contain different rotations of products instead of all showing the same eight items.
 - [ ] With `ResetTestDataOnStartup = false`, restarting the app preserves existing database changes and does not reload test data.
 
 ## Navigation and Tabs
@@ -91,6 +140,11 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Shopping Lists, Products, and Settings all appear as separate tabs.
 - [ ] The Settings tab uses a recognizable gear icon.
 - [ ] Tapping Settings opens the Settings page without errors.
+- [ ] Settings shows an editable Sales tax rate (%) field.
+- [ ] The seeded tax setting is labeled Ontario HST and loads as 13%.
+- [ ] Saving a new valid tax rate persists after leaving and returning to Settings.
+- [ ] Invalid tax rates are rejected with validation feedback.
+- [ ] Changing the tax rate changes subsequent Shopping List Product totals.
 - [ ] Switching between Shopping Lists, Products, and Settings works repeatedly.
 - [ ] Returning to a tab refreshes its data when needed.
 - [ ] Bottom tab icons and labels display correctly.

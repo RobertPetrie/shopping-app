@@ -41,7 +41,8 @@
 
     <RootNamespace>shopping_app</RootNamespace>
     <UseMaui>true</UseMaui>
-    <MauiVersion>10.0.71</MauiVersion>
+    <!-- Keep MAUI current so Windows navigation includes recent handler-disconnect fixes. -->
+    <MauiVersion>10.0.110</MauiVersion>
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

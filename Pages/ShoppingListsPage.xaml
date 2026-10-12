@@ -96,6 +96,14 @@
                         Padding="3"
                         Margin="0,0,0,10">
 
+                        <!-- Open the products that belong to the tapped shopping list. -->
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer
+                                NumberOfTapsRequired="1"
+                                Tapped="OnShoppingListTapped"
+                                CommandParameter="{Binding .}" />
+                        </Grid.GestureRecognizers>
+
                         <Border
                             StyleClass="SurfaceContainer,Rounded"
                             Padding="18,16">

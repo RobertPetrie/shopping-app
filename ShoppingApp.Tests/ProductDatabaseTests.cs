@@ -427,6 +427,76 @@ namespace ShoppingApp.Tests
 			}
 		}
 
+		[Fact]
+		public async Task GetConnectionAsync_LegacyShoppingListProduct_AddsPickedUpDefaultFalse()
+		{
+			// Reproduce the old linking-table schema before per-product pickup
+			// tracking existed, including one row that must survive the upgrade.
+			string databasePath = CreateTemporaryDatabasePath();
+
+			var legacyConnection = new SQLiteAsyncConnection(
+				databasePath,
+				SQLiteOpenFlags.ReadWrite |
+				SQLiteOpenFlags.Create |
+				SQLiteOpenFlags.FullMutex,
+				storeDateTimeAsTicks: true);
+
+			await legacyConnection.ExecuteAsync(
+				"""
+                CREATE TABLE "ShoppingListProduct"
+                (
+                    "ShoppingListID" INTEGER NOT NULL,
+                    "ProductID" INTEGER NOT NULL,
+                    "Price" INTEGER NOT NULL,
+                    "CreatedOn" INTEGER NOT NULL,
+                    PRIMARY KEY ("ShoppingListID", "ProductID")
+                );
+                """);
+
+			await legacyConnection.ExecuteAsync(
+				"""
+                INSERT INTO "ShoppingListProduct"
+                    ("ShoppingListID", "ProductID", "Price", "CreatedOn")
+                VALUES (1, 1, 499, ?);
+                """,
+				DateTime.UtcNow.Ticks);
+
+			await legacyConnection.CloseAsync();
+
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var connection = await database.GetConnectionAsync();
+
+				// The explicit migration must add a NOT NULL PickedUp column
+				// with a SQL default so old rows remain valid.
+				int pickedUpColumnCount =
+					await connection.ExecuteScalarAsync<int>(
+						"""
+                        SELECT COUNT(*)
+                        FROM pragma_table_info('ShoppingListProduct')
+                        WHERE name = 'PickedUp';
+                        """);
+
+				int pickedUpValue =
+					await connection.ExecuteScalarAsync<int>(
+						"""
+                        SELECT "PickedUp"
+                        FROM "ShoppingListProduct"
+                        WHERE "ShoppingListID" = 1
+                          AND "ProductID" = 1;
+                        """);
+
+				Assert.Equal(1, pickedUpColumnCount);
+				Assert.Equal(0, pickedUpValue);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
 		private static string CreateTemporaryDatabasePath()
 		{
 			// Give every database test its own file so one test cannot leak

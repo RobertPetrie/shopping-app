@@ -1,4 +1,5 @@
 using Microsoft.Maui.Storage;
+using shopping_app.Logic;
 using shopping_app.Models;
 using SQLite;
 
@@ -135,6 +136,11 @@ namespace shopping_app.Data
 					await EnsureStorageLocationsAsync(newConnection)
 						.ConfigureAwait(false);
 
+					// Sales tax is stored separately so the Settings screen can change
+					// the percentage without changing Product or shopping-list rows.
+					await newConnection.CreateTableAsync<TaxRate>()
+						.ConfigureAwait(false);
+
 					// Older app databases may not have the newer Product columns.
 					// Add them before sqlite-net compares the Product model so
 					// existing rows remain intact.
@@ -237,6 +243,7 @@ namespace shopping_app.Data
                             "ShoppingListID" INTEGER NOT NULL,
                             "ProductID" INTEGER NOT NULL,
                             "Price" INTEGER NOT NULL,
+                            "PickedUp" INTEGER NOT NULL DEFAULT 0,
                             "CreatedOn" INTEGER NOT NULL,
 
                             PRIMARY KEY ("ShoppingListID", "ProductID"),
@@ -252,6 +259,25 @@ namespace shopping_app.Data
                                 ON UPDATE RESTRICT
                         );
                         """).ConfigureAwait(false);
+
+					int shoppingListProductPickedUpColumnExists =
+						await newConnection.ExecuteScalarAsync<int>(
+							"""
+                            SELECT COUNT(*)
+                            FROM pragma_table_info('ShoppingListProduct')
+                            WHERE name = 'PickedUp';
+                            """).ConfigureAwait(false);
+
+					if (shoppingListProductPickedUpColumnExists == 0)
+					{
+						// Existing shopping-list products were created before per-item
+						// pickup tracking existed. Mark them not picked up by default.
+						await newConnection.ExecuteAsync(
+							"""
+                            ALTER TABLE "ShoppingListProduct"
+                            ADD COLUMN "PickedUp" INTEGER NOT NULL DEFAULT 0;
+                            """).ConfigureAwait(false);
+					}
 
 					// Support lookups by ProductID.
 					await newConnection.ExecuteAsync(
@@ -688,6 +714,7 @@ namespace shopping_app.Data
 				transaction.Execute("DELETE FROM \"Shopping_List\";");
 				transaction.Execute("DELETE FROM \"StorageLocation\";");
 				transaction.Execute("DELETE FROM \"ProductCategory\";");
+				transaction.Execute("DELETE FROM \"TaxRate\";");
 
 				// Reset AUTOINCREMENT counters so each fresh test-data load starts
 				// from the same predictable IDs as a brand-new database.
@@ -699,10 +726,68 @@ namespace shopping_app.Data
                         'Product',
                         'Shopping_List',
                         'StorageLocation',
-                        'ProductCategory'
+                        'ProductCategory',
+                        'TaxRate'
                     );
                     """);
 			}).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Return the single app-wide sales-tax setting, or null before one has
+		/// been configured.
+		/// </summary>
+		public async Task<TaxRate?> GetTaxRateAsync()
+		{
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database
+				.Table<TaxRate>()
+				.OrderBy(rate => rate.ID)
+				.FirstOrDefaultAsync()
+				.ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Save the app-wide sales-tax percentage. The first row is reused so
+		/// shopping-list calculations always have one unambiguous rate.
+		/// </summary>
+		public async Task<TaxRate> SetTaxRateAsync(
+			string name,
+			decimal percentage)
+		{
+			if (string.IsNullOrWhiteSpace(name))
+			{
+				throw new ArgumentException(
+					"A tax-rate name is required.",
+					nameof(name));
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var taxRate = await database
+				.Table<TaxRate>()
+				.OrderBy(rate => rate.ID)
+				.FirstOrDefaultAsync()
+				.ConfigureAwait(false);
+
+			if (taxRate is null)
+			{
+				taxRate = new TaxRate
+				{
+					Name = name.Trim(),
+					Percentage = percentage
+				};
+
+				await database.InsertAsync(taxRate).ConfigureAwait(false);
+			}
+			else
+			{
+				taxRate.Name = name.Trim();
+				taxRate.Percentage = percentage;
+				await database.UpdateAsync(taxRate).ConfigureAwait(false);
+			}
+
+			return taxRate;
 		}
 
 		/// <summary>
@@ -729,6 +814,246 @@ namespace shopping_app.Data
 			await database.InsertAsync(shoppingList).ConfigureAwait(false);
 
 			return shoppingList;
+		}
+
+		/// <summary>
+		/// Return the products assigned to one shopping list, including the
+		/// Product name needed by the checklist screen.
+		/// </summary>
+		public async Task<List<ShoppingListProductListItem>>
+			GetShoppingListProductsAsync(int shoppingListID)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database.QueryAsync<ShoppingListProductListItem>(
+				"""
+                SELECT
+                    item."ShoppingListID",
+                    item."ProductID",
+                    product."Name" AS "ProductName",
+                    item."Price" AS "PriceInCents",
+                    item."PickedUp",
+                    COALESCE(category."IsTaxable", 0) AS "IsTaxable"
+                FROM "ShoppingListProduct" AS item
+                INNER JOIN "Product" AS product
+                    ON product."ID" = item."ProductID"
+                LEFT JOIN "ProductCategory" AS category
+                    ON category."ID" = product."ProductCategoryID"
+                WHERE item."ShoppingListID" = ?
+                ORDER BY product."Name" COLLATE NOCASE, product."ID";
+                """,
+				shoppingListID).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Persist the current calculated total on the parent Shopping_List row.
+		/// </summary>
+		public async Task SetShoppingListTotalCostAsync(
+			int shoppingListID,
+			decimal totalCost)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			if (totalCost < 0m)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(totalCost),
+					"Shopping list total cannot be negative.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var shoppingList = await database
+				.Table<ShoppingList>()
+				.Where(list => list.ID == shoppingListID)
+				.FirstOrDefaultAsync()
+				.ConfigureAwait(false);
+
+			if (shoppingList is null)
+			{
+				throw new KeyNotFoundException(
+					"The selected shopping list no longer exists.");
+			}
+
+			// Let the model convert dollars to whole cents and reject fractions
+			// smaller than a cent before the row is written.
+			shoppingList.TotalCost = totalCost;
+			shoppingList.ModifiedOn = DateTime.UtcNow;
+
+			await database.UpdateAsync(shoppingList).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Recalculate and persist every Shopping_List total using the current
+		/// picked-up items, ProductCategory taxability, and supplied tax rate.
+		/// </summary>
+		public async Task RecalculateAllShoppingListTotalsAsync(
+			int taxRateBasisPoints)
+		{
+			if (taxRateBasisPoints < 0 || taxRateBasisPoints > 10000)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(taxRateBasisPoints),
+					"Tax rate must be between 0 and 100 percent.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var shoppingLists = await database
+				.Table<ShoppingList>()
+				.ToListAsync()
+				.ConfigureAwait(false);
+
+			foreach (var shoppingList in shoppingLists)
+			{
+				var items = await GetShoppingListProductsAsync(shoppingList.ID)
+					.ConfigureAwait(false);
+
+				var totals = ShoppingListTotalsCalculator.Calculate(
+					items,
+					taxRateBasisPoints);
+
+				await SetShoppingListTotalCostAsync(
+					shoppingList.ID,
+					totals.Total).ConfigureAwait(false);
+			}
+		}
+
+		/// <summary>
+		/// Mark one shopping-list product as picked up and save the price paid.
+		/// The price and checkbox state are written together so they cannot drift.
+		/// </summary>
+		public async Task PickUpShoppingListProductAsync(
+			int shoppingListID,
+			int productID,
+			decimal price)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			if (productID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(productID),
+					"Product ID must be greater than zero.");
+			}
+
+			if (price < 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(price),
+					"Price cannot be negative.");
+			}
+
+			// Reuse the model's currency conversion so fractions smaller than
+			// one cent are rejected exactly the same way everywhere.
+			var priceValue = new ShoppingListProduct
+			{
+				Price = price
+			};
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			int rowsUpdated = await database.ExecuteAsync(
+				"""
+                UPDATE "ShoppingListProduct"
+                SET "Price" = ?,
+                    "PickedUp" = 1
+                WHERE "ShoppingListID" = ?
+                  AND "ProductID" = ?;
+                """,
+				priceValue.PriceInCents,
+				shoppingListID,
+				productID).ConfigureAwait(false);
+
+			if (rowsUpdated == 0)
+			{
+				throw new KeyNotFoundException(
+					"This product is no longer on the selected shopping list.");
+			}
+		}
+
+		/// <summary>
+		/// Store the checkbox state for one product on one shopping list.
+		/// SQLite stores false as 0 and true as 1.
+		/// </summary>
+		public async Task SetShoppingListProductPickedUpAsync(
+			int shoppingListID,
+			int productID,
+			bool pickedUp)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			if (productID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(productID),
+					"Product ID must be greater than zero.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			int rowsUpdated = await database.ExecuteAsync(
+				"""
+                UPDATE "ShoppingListProduct"
+                SET "PickedUp" = ?
+                WHERE "ShoppingListID" = ?
+                  AND "ProductID" = ?;
+                """,
+				pickedUp ? 1 : 0,
+				shoppingListID,
+				productID).ConfigureAwait(false);
+
+			if (rowsUpdated == 0)
+			{
+				throw new KeyNotFoundException(
+					"This product is no longer on the selected shopping list.");
+			}
+		}
+
+		/// <summary>
+		/// Return Product IDs already linked to one Shopping List so the product
+		/// picker can disable items that have already been added.
+		/// </summary>
+		public async Task<List<int>> GetShoppingListProductIdsAsync(
+			int shoppingListID)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var rows = await database
+				.Table<ShoppingListProduct>()
+				.Where(item => item.ShoppingListID == shoppingListID)
+				.ToListAsync()
+				.ConfigureAwait(false);
+
+			return rows
+				.Select(item => item.ProductID)
+				.ToList();
 		}
 
 		/// <summary>
@@ -759,7 +1084,10 @@ namespace shopping_app.Data
 			{
 				ShoppingListID = shoppingListID,
 				ProductID = productID,
-				Price = price
+				Price = price,
+
+				// A product starts unchecked until the shopper picks it up.
+				PickedUp = false
 			};
 
 			var database = await GetConnectionAsync().ConfigureAwait(false);

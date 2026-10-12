@@ -5,12 +5,10 @@
     x:Class="shopping_app.Pages.SettingsPage"
     Title="Settings">
 
-    <!-- Keep the first Settings screen simple; future settings such as
-         theming can be added here without changing the tab structure. -->
     <ScrollView>
         <VerticalStackLayout
             Padding="24,20"
-            Spacing="12"
+            Spacing="18"
             MaximumWidthRequest="700"
             HorizontalOptions="Fill">
 
@@ -19,10 +17,58 @@
                 FontSize="30"
                 FontAttributes="Bold" />
 
-            <Label
-                Text="App settings will appear here."
-                FontSize="16"
-                TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+            <!-- Sales tax is app-wide because every shopping list uses the same rate. -->
+            <Border
+                StyleClass="SurfaceContainer,Rounded"
+                Padding="20">
+
+                <VerticalStackLayout Spacing="12">
+                    <Label
+                        Text="Sales tax"
+                        FontSize="20"
+                        FontAttributes="Bold" />
+
+                    <Label
+                        x:Name="TaxRateNameLabel"
+                        Text="Loading tax rate..."
+                        FontSize="14"
+                        TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+
+                    <Label
+                        Text="Tax rate (%)"
+                        FontSize="15"
+                        FontAttributes="Bold" />
+
+                    <Entry
+                        x:Name="TaxRateEntry"
+                        AutomationId="TaxRateEntry"
+                        Placeholder="For example, 13.00"
+                        Keyboard="Numeric"
+                        ReturnType="Done"
+                        Completed="OnTaxRateCompleted"
+                        TextChanged="OnTaxRateTextChanged"
+                        SemanticProperties.Description="Sales tax rate percentage" />
+
+                    <Label
+                        x:Name="TaxRateValidationLabel"
+                        IsVisible="False"
+                        FontSize="14"
+                        TextColor="{AppThemeBinding Light=#B3261E, Dark=#FFB4AB}" />
+
+                    <Button
+                        x:Name="SaveTaxRateButton"
+                        StyleClass="FilledTonalButton"
+                        Text="Save tax rate"
+                        HorizontalOptions="Start"
+                        Clicked="OnSaveTaxRateClicked"
+                        SemanticProperties.Description="Save the sales tax rate" />
+
+                    <Label
+                        x:Name="TaxRateStatusLabel"
+                        FontSize="13"
+                        TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+                </VerticalStackLayout>
+            </Border>
 
         </VerticalStackLayout>
     </ScrollView>

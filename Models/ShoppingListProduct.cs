@@ -41,6 +41,11 @@ namespace shopping_app.Models
 			}
 		}
 
+		// Track whether this individual product has been picked up during
+		// the shopping trip. New entries always begin as not picked up.
+		[NotNull]
+		public bool PickedUp { get; set; } = false;
+
 		// Assigned in UTC by AddShoppingListProductAsync before insertion.
 		[NotNull]
 		public DateTime CreatedOn { get; set; }

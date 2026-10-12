@@ -5,6 +5,17 @@ namespace ShoppingApp.Tests
 	public class ShoppingListProductTests
 	{
 		[Fact]
+		public void PickedUp_NewEntry_DefaultsToFalse()
+		{
+			// A product added to a shopping list should begin unchecked so the
+			// shopper can mark it picked up only after taking it from the shelf.
+			var shoppingListProduct = new ShoppingListProduct();
+
+			Assert.False(shoppingListProduct.PickedUp);
+		}
+
+
+		[Fact]
 		public void Price_WhenSet_StoresValueAsCents()
 		{
 			// Assigning a decimal price should convert dollars and cents into
