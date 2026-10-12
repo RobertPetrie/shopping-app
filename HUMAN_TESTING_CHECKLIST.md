@@ -81,6 +81,7 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] A stored PickedUp value of 0 appears unchecked.
 - [ ] A stored PickedUp value of 1 appears checked.
 - [ ] Tapping an unchecked box opens a centered price-entry popup before the item is saved as picked up.
+- [ ] On Windows, the price-entry popup opens without a Shell/modal-navigation COMException.
 - [ ] The price popup shows the Product name, a price field, Save, and Cancel.
 - [ ] Saving a valid price stores the amount as whole cents and saves PickedUp = 1.
 - [ ] Canceling the price popup leaves the item unchecked and does not change its stored price.

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using shopping_app.Data;
 using shopping_app.Logic;
@@ -18,6 +19,8 @@ namespace shopping_app.Pages
 		private bool isPageActive;
 		private bool needsRefresh = true;
 		private bool suppressPickedUpChange;
+		private bool isPricePopupOpen;
+		private TaskCompletionSource<decimal?>? pricePopupResultSource;
 		private List<ShoppingListProductListItem> items = new();
 
 		public ShoppingListProductsPage()
@@ -53,6 +56,11 @@ namespace shopping_app.Pages
 		{
 			base.OnNavigatedFrom(args);
 			isPageActive = false;
+
+			if (isPricePopupOpen)
+			{
+				CompletePricePopup(null);
+			}
 		}
 
 		private void OnPageLoaded(object? sender, EventArgs e)
@@ -216,18 +224,15 @@ namespace shopping_app.Pages
 			{
 				if (e.Value)
 				{
-					// Picking an item up requires the price paid. Show a centered
-					// modal card and do not commit the checkmark until Save is tapped.
+					// Picking an item up requires the price paid. Use an overlay on
+					// this page instead of Shell modal navigation, which can fail on Windows.
 					decimal? existingPrice = item.PriceInCents > 0
 						? item.Price
 						: null;
 
-					var popup = new PriceEntryPopupPage(
+					decimal? price = await ShowPricePopupAsync(
 						item.ProductName,
 						existingPrice);
-
-					await Navigation.PushModalAsync(popup, animated: false);
-					decimal? price = await popup.WaitForResultAsync();
 
 					if (!price.HasValue)
 					{
@@ -269,6 +274,109 @@ namespace shopping_app.Pages
 					"Could not update this product. Please try again.",
 					"OK");
 			}
+		}
+
+		private Task<decimal?> ShowPricePopupAsync(
+			string productName,
+			decimal? existingPrice)
+		{
+			if (isPricePopupOpen)
+			{
+				throw new InvalidOperationException(
+					"The price popup is already open.");
+			}
+
+			isPricePopupOpen = true;
+			pricePopupResultSource = new TaskCompletionSource<decimal?>(
+				TaskCreationOptions.RunContinuationsAsynchronously);
+
+			PricePopupProductNameLabel.Text = productName;
+			PricePopupEntry.Text = existingPrice?.ToString(
+				"0.00",
+				CultureInfo.CurrentCulture) ?? string.Empty;
+
+			PricePopupValidationLabel.Text = string.Empty;
+			PricePopupValidationLabel.IsVisible = false;
+			PricePopupOverlay.IsVisible = true;
+
+			// Focus after the overlay enters the visual tree so Android can show
+			// its numeric keypad and Windows can place the caret in the field.
+			Dispatcher.Dispatch(() => PricePopupEntry.Focus());
+
+			return pricePopupResultSource.Task;
+		}
+
+		private void OnPricePopupTextChanged(
+			object? sender,
+			TextChangedEventArgs e)
+		{
+			// Clear stale validation as soon as the shopper changes the value.
+			PricePopupValidationLabel.Text = string.Empty;
+			PricePopupValidationLabel.IsVisible = false;
+		}
+
+		private async void OnPricePopupCompleted(object? sender, EventArgs e)
+		{
+			await SavePricePopupAsync();
+		}
+
+		private async void OnPricePopupSaveClicked(object? sender, EventArgs e)
+		{
+			await SavePricePopupAsync();
+		}
+
+		private Task SavePricePopupAsync()
+		{
+			if (!ShoppingListPriceInput.TryParse(
+				PricePopupEntry.Text,
+				CultureInfo.CurrentCulture,
+				out decimal price,
+				out string validationMessage))
+			{
+				PricePopupValidationLabel.Text = validationMessage;
+				PricePopupValidationLabel.IsVisible = true;
+				PricePopupEntry.Focus();
+				return Task.CompletedTask;
+			}
+
+			CompletePricePopup(price);
+			return Task.CompletedTask;
+		}
+
+		private void OnPricePopupCancelClicked(object? sender, EventArgs e)
+		{
+			CompletePricePopup(null);
+		}
+
+		private void CompletePricePopup(decimal? result)
+		{
+			if (!isPricePopupOpen)
+			{
+				return;
+			}
+
+			var resultSource = pricePopupResultSource;
+
+			isPricePopupOpen = false;
+			pricePopupResultSource = null;
+			PricePopupOverlay.IsVisible = false;
+			PricePopupEntry.Unfocus();
+			PricePopupValidationLabel.Text = string.Empty;
+			PricePopupValidationLabel.IsVisible = false;
+
+			resultSource?.TrySetResult(result);
+		}
+
+		protected override bool OnBackButtonPressed()
+		{
+			if (isPricePopupOpen)
+			{
+				// Treat Android/Windows back as Cancel while the price card is open.
+				CompletePricePopup(null);
+				return true;
+			}
+
+			return base.OnBackButtonPressed();
 		}
 
 		private void RestoreCheckbox(
