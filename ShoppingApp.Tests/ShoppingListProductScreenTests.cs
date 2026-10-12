@@ -189,10 +189,60 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
-		public async Task ResetAndSeedAsync_PendingListHasChecklistExamples()
+		public async Task ResetAndSeedAsync_AllShoppingListsHaveChecklistProducts()
 		{
-			// Development startup data should populate the pending list with rows
-			// so the new checklist screen can be tested without manual SQL setup.
+			// Every sample shopping list should open to useful product data instead
+			// of only the newest pending list having ShoppingListProduct rows.
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				await TestDataSeeder.ResetAndSeedAsync(database);
+				var connection = await database.GetConnectionAsync();
+
+				var shoppingLists = await connection
+					.Table<ShoppingList>()
+					.ToListAsync();
+
+				var allItems = await connection
+					.Table<ShoppingListProduct>()
+					.ToListAsync();
+
+				Assert.Equal(12, shoppingLists.Count);
+				Assert.Equal(96, allItems.Count);
+
+				// Each of the twelve sample lists gets exactly eight related products.
+				Assert.All(
+					shoppingLists,
+					shoppingList => Assert.Equal(
+						8,
+						allItems.Count(item =>
+							item.ShoppingListID == shoppingList.ID)));
+
+				// Historical trips are completed, so every item on them should
+				// already be checked off.
+				var completedListIds = shoppingLists
+					.Where(list => list.PickedUp)
+					.Select(list => list.ID)
+					.ToHashSet();
+
+				Assert.All(
+					allItems.Where(item =>
+						completedListIds.Contains(item.ShoppingListID)),
+					item => Assert.True(item.PickedUp));
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
+		public async Task ResetAndSeedAsync_PendingListKeepsMixedPickedUpStates()
+		{
+			// The current pending trip needs both checkbox states so manual testing
+			// can verify 0/unchecked and 1/checked immediately after launch.
 			string databasePath = CreateTemporaryDatabasePath();
 			var database = new AppDatabase(databasePath);
 
@@ -212,9 +262,6 @@ namespace ShoppingApp.Tests
 					.ToListAsync();
 
 				Assert.Equal(8, items.Count);
-
-				// Keep both states in the sample data so checked and unchecked
-				// rendering can be verified immediately.
 				Assert.Equal(2, items.Count(item => item.PickedUp));
 				Assert.Equal(6, items.Count(item => !item.PickedUp));
 			}

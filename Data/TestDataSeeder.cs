@@ -329,47 +329,53 @@ namespace shopping_app.Data
 			AppDatabase database,
 			SQLite.SQLiteAsyncConnection connection)
 		{
-			// Give the pending sample list realistic checklist rows immediately.
-			var pendingList = await connection
+			// Give every sample shopping list a useful product checklist.
+			// Completed shopping trips are fully checked, while the pending trip
+			// intentionally keeps a mix of checked and unchecked rows.
+			var shoppingLists = await connection
 				.Table<ShoppingList>()
-				.Where(list => list.ShoppingDateStorage == "2026-10-11")
-				.FirstAsync();
+				.OrderByDescending(list => list.ShoppingDateStorage)
+				.ToListAsync();
 
-			var testItems = new (string ProductName, bool PickedUp)[]
-			{
-				("Disco Bananas", false),
-				("Ninja Noodles", false),
-				("Emergency Chocolate", true),
-				("Cosmic Cola", true),
-				("Bathroom Tissue", false),
-				("Laundry Detergent", false),
-				("Frozen Pizza", false),
-				("Secret Agent Apples", false)
-			};
+			var products = await connection
+				.Table<Product>()
+				.OrderBy(product => product.ID)
+				.ToListAsync();
 
+			const int productsPerList = 8;
 			int createdCount = 0;
 
-			foreach (var item in testItems)
+			for (int listIndex = 0; listIndex < shoppingLists.Count; listIndex++)
 			{
-				var product = await connection
-					.Table<Product>()
-					.Where(value => value.Name == item.ProductName)
-					.FirstAsync();
+				var shoppingList = shoppingLists[listIndex];
 
-				await database.AddShoppingListProductAsync(
-					pendingList.ID,
-					product.ID,
-					price: 0m);
+				// Rotate through the product catalog so the historical sample lists
+				// do not all contain the exact same eight products.
+				int startingProductIndex = (listIndex * 3) % products.Count;
 
-				if (item.PickedUp)
+				for (int itemIndex = 0; itemIndex < productsPerList; itemIndex++)
 				{
-					await database.SetShoppingListProductPickedUpAsync(
-						pendingList.ID,
-						product.ID,
-						pickedUp: true);
-				}
+					var product = products[
+						(startingProductIndex + itemIndex) % products.Count];
 
-				createdCount++;
+					await database.AddShoppingListProductAsync(
+						shoppingList.ID,
+						product.ID,
+						price: 0m);
+
+					bool pickedUp = shoppingList.PickedUp
+						|| (!shoppingList.PickedUp && itemIndex < 2);
+
+					if (pickedUp)
+					{
+						await database.SetShoppingListProductPickedUpAsync(
+							shoppingList.ID,
+							product.ID,
+							pickedUp: true);
+					}
+
+					createdCount++;
+				}
 			}
 
 			return createdCount;

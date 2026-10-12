@@ -96,7 +96,10 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] After each reset, exactly 7 Product Categories and 9 Storage Locations are recreated before using the Product form.
 - [ ] After each reset, exactly 28 sample products and 12 sample shopping lists are recreated.
 - [ ] The pending sample shopping list appears with no total entered.
-- [ ] The pending October 11, 2026 sample list contains 8 ShoppingListProduct rows with both checked and unchecked examples.
+- [ ] Every one of the 12 sample shopping lists contains exactly 8 ShoppingListProduct rows.
+- [ ] Completed sample shopping lists open with all 8 product checkboxes checked.
+- [ ] The pending October 11, 2026 sample list contains 8 ShoppingListProduct rows with 2 checked and 6 unchecked examples.
+- [ ] Different sample shopping lists contain different rotations of products instead of all showing the same eight items.
 - [ ] With `ResetTestDataOnStartup = false`, restarting the app preserves existing database changes and does not reload test data.
 
 ## Navigation and Tabs
