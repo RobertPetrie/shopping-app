@@ -41,24 +41,26 @@ jobs:
           dotnet restore shopping-app.csproj
           -p:TargetFrameworks=net10.0-android
 
-      - name: Build signed debug APK
+      - name: Build self-contained installable APK
         run: >
           dotnet publish shopping-app.csproj
-          --configuration Debug
+          --configuration Release
           --framework net10.0-android
           -p:TargetFrameworks=net10.0-android
           -p:AndroidPackageFormats=apk
+          -p:AndroidEnableFastDeployment=false
+          -p:EmbedAssembliesIntoApk=true
           --no-restore
 
       - name: Prepare APK for download
         shell: bash
         run: |
           mkdir -p apk-output
-          APK_PATH="$(find bin/Debug/net10.0-android -type f -name '*-Signed.apk' | head -n 1)"
+          APK_PATH="$(find bin/Release/net10.0-android -type f -name '*-Signed.apk' | head -n 1)"
 
           if [ -z "$APK_PATH" ]; then
             echo "No signed APK was produced."
-            find bin/Debug/net10.0-android -type f -name '*.apk' -print
+            find bin/Release/net10.0-android -type f -name '*.apk' -print
             exit 1
           fi
 

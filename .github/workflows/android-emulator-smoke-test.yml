@@ -48,23 +48,25 @@ jobs:
           dotnet restore shopping-app.csproj
           -p:TargetFrameworks=net10.0-android
 
-      - name: Build signed debug APK
+      - name: Build self-contained release APK
         run: >
           dotnet publish shopping-app.csproj
-          --configuration Debug
+          --configuration Release
           --framework net10.0-android
           -p:TargetFrameworks=net10.0-android
           -p:AndroidPackageFormats=apk
+          -p:AndroidEnableFastDeployment=false
+          -p:EmbedAssembliesIntoApk=true
           --no-restore
 
       - name: Prepare APK path
         shell: bash
         run: |
-          APK_PATH="$(find bin/Debug/net10.0-android -type f -name '*-Signed.apk' | head -n 1)"
+          APK_PATH="$(find bin/Release/net10.0-android -type f -name '*-Signed.apk' | head -n 1)"
 
           if [ -z "$APK_PATH" ]; then
             echo "No signed APK was produced."
-            find bin/Debug/net10.0-android -type f -name '*.apk' -print
+            find bin/Release/net10.0-android -type f -name '*.apk' -print
             exit 1
           fi
 
@@ -87,6 +89,14 @@ jobs:
           APP_DEBUG_LOG="files/DebugData/debug.log"
 
           mkdir -p "$RESULTS_DIR"
+
+          echo "Waiting for emulator ADB to be fully ready..."
+          adb wait-for-device
+
+          until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
+            echo "Waiting for Android boot to complete..."
+            sleep 2
+          done
 
           echo "Installing APK..."
           adb install -r "$APK_PATH"
