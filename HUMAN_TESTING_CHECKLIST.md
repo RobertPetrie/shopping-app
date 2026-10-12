@@ -84,7 +84,8 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Scrolling/recycling rows does not open the price popup unless the user actually changes a checkbox.
 - [ ] Tapping an unchecked box opens a centered price-entry popup before the item is saved as picked up.
 - [ ] On Windows, the price-entry popup opens without a Shell/modal-navigation COMException.
-- [ ] The price popup shows the Product name, a price field, Save, and Cancel.
+- [ ] The price popup uses the Product name as its heading with no separate "Item picked up" header.
+- [ ] The price popup shows a price field, then a green checkmark button followed by a matching green X button.
 - [ ] Saving a valid price stores the amount as whole cents and saves PickedUp = 1.
 - [ ] Canceling the price popup leaves the item unchecked and does not change its stored price.
 - [ ] Invalid, blank, negative, or more-than-two-decimal price input shows validation feedback and does not close the popup.

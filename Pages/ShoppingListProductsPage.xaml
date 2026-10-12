@@ -188,14 +188,10 @@
                 </Border.Shadow>
 
                 <VerticalStackLayout Spacing="16">
-                    <Label
-                        Text="Item picked up"
-                        FontSize="24"
-                        FontAttributes="Bold" />
-
+                    <!-- The Product name is the popup heading; no extra title is needed. -->
                     <Label
                         x:Name="PricePopupProductNameLabel"
-                        FontSize="17"
+                        FontSize="20"
                         FontAttributes="Bold" />
 
                     <Label
@@ -223,17 +219,21 @@
                         ColumnDefinitions="*,*"
                         ColumnSpacing="12">
 
+                        <!-- Put the positive action first and use compact icon buttons. -->
                         <Button
-                            Text="Cancel"
-                            Clicked="OnPricePopupCancelClicked"
-                            SemanticProperties.Description="Cancel entering the price" />
+                            StyleClass="FilledTonalButton"
+                            Text="✓"
+                            FontSize="22"
+                            Clicked="OnPricePopupSaveClicked"
+                            SemanticProperties.Description="Save the price and mark the item picked up" />
 
                         <Button
                             Grid.Column="1"
                             StyleClass="FilledTonalButton"
-                            Text="Save"
-                            Clicked="OnPricePopupSaveClicked"
-                            SemanticProperties.Description="Save the price and mark the item picked up" />
+                            Text="✕"
+                            FontSize="22"
+                            Clicked="OnPricePopupCancelClicked"
+                            SemanticProperties.Description="Cancel entering the price" />
                     </Grid>
                 </VerticalStackLayout>
             </Border>
