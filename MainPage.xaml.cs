@@ -101,7 +101,21 @@ namespace shopping_app
 			base.OnNavigatedFrom(args);
 
 			isPageActive = false;
-			StopHighlights();
+
+			try
+			{
+				// A pushed Product picker is removed from the visual tree when
+				// Back is pressed. Its CollectionView rows can unload during this
+				// callback, so cleanup must not enumerate the live HashSet directly.
+				StopHighlights();
+				loadedRows.Clear();
+			}
+			catch (Exception ex)
+			{
+				// Highlight cleanup is cosmetic. Never let it crash navigation.
+				DevelopmentDebugArtifacts.WriteLine(
+					$"Error cleaning up product rows while navigating away: {ex}");
+			}
 		}
 
 		private void OnPageLoaded(object? sender, EventArgs e)
@@ -490,7 +504,10 @@ namespace shopping_app
 
 		private void ConfigureLoadedRows()
 		{
-			foreach (var row in loadedRows)
+			// Row Loaded/Unloaded events can fire while navigation or recycling is
+			// in progress. Work from a snapshot so those events may safely update
+			// the live set without invalidating this enumeration.
+			foreach (var row in loadedRows.ToArray())
 			{
 				ConfigureProductRow(row);
 			}
@@ -621,7 +638,9 @@ namespace shopping_app
 			highlightProductId = null;
 			scrollRequested = false;
 
-			foreach (var row in loadedRows)
+			// A row can raise Unloaded as navigation tears down this page.
+			// Enumerating a snapshot avoids "Collection was modified" crashes.
+			foreach (var row in loadedRows.ToArray())
 			{
 				ResetRow(row);
 			}
