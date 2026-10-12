@@ -92,6 +92,9 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Total adds sales tax only for picked-up products whose Product Category is taxable.
 - [ ] Checking an item with a saved price updates Subtotal and Total immediately after the price popup is saved.
 - [ ] Unchecking an item removes its price and tax contribution from the running Subtotal and Total immediately.
+- [ ] The calculated Total is also saved to the selected Shopping_List.TotalCost record.
+- [ ] Returning to the Shopping Lists screen shows the same saved Total on that list's card.
+- [ ] Changing the tax rate recalculates and saves TotalCost for existing shopping-list records.
 - [ ] Shopping List Product search filters immediately by Product name.
 - [ ] The Shopping List Products screen includes the same circular add button pattern as the other list screens.
 - [ ] The Shopping List Products add button currently shows a placeholder message for adding products.
@@ -107,7 +110,7 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] After each reset, exactly one TaxRate row is recreated as Ontario HST at 13%.
 - [ ] Seeded ShoppingListProduct rows that are already picked up have non-zero prices so running totals are visible.
 - [ ] After each reset, exactly 28 sample products and 12 sample shopping lists are recreated.
-- [ ] The pending sample shopping list appears with no total entered.
+- [ ] The pending sample shopping list shows a stored running total based on its currently picked-up products.
 - [ ] Every one of the 12 sample shopping lists contains exactly 8 ShoppingListProduct rows.
 - [ ] Completed sample shopping lists open with all 8 product checkboxes checked.
 - [ ] The pending October 11, 2026 sample list contains 8 ShoppingListProduct rows with 2 checked and 6 unchecked examples.

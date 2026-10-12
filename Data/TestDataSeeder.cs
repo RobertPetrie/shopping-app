@@ -42,6 +42,12 @@ namespace shopping_app.Data
 				database,
 				connection);
 
+			// Keep Shopping_List.TotalCost synchronized with the seeded picked-up
+			// item prices and the seeded Ontario HST rate.
+			var taxRate = await database.GetTaxRateAsync();
+			await database.RecalculateAllShoppingListTotalsAsync(
+				taxRate?.RateBasisPoints ?? 0);
+
 			DevelopmentDebugArtifacts.WriteLine(
 				$"Test data reset: created {categoryCount} categories, "
 					+ $"{storageLocationCount} storage locations, "

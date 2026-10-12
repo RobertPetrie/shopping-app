@@ -99,7 +99,7 @@ namespace shopping_app.Pages
 				items = await database.GetShoppingListProductsAsync(shoppingListID);
 				taxRate = await database.GetTaxRateAsync();
 				ApplyFilter();
-				UpdateRunningTotals();
+				await UpdateRunningTotalsAsync();
 			}
 			catch (Exception ex)
 			{
@@ -139,7 +139,7 @@ namespace shopping_app.Pages
 			return displayedItems.Count;
 		}
 
-		private void UpdateRunningTotals()
+		private async Task UpdateRunningTotalsAsync()
 		{
 			int rateBasisPoints = taxRate?.RateBasisPoints ?? 0;
 
@@ -152,6 +152,32 @@ namespace shopping_app.Pages
 
 			TotalLabel.Text =
 				$"Total: {totals.Total.ToString("C", System.Globalization.CultureInfo.CurrentCulture)}";
+
+			if (database is null || shoppingListID <= 0)
+			{
+				return;
+			}
+
+			try
+			{
+				// Keep the parent Shopping_List row in sync with the same Total the
+				// shopper sees in the top-right corner.
+				await database.SetShoppingListTotalCostAsync(
+					shoppingListID,
+					totals.Total);
+			}
+			catch (Exception ex)
+			{
+				// The checkbox/price save may already have succeeded, so do not roll
+				// it back just because the parent total could not be persisted.
+				DevelopmentDebugArtifacts.WriteLine(
+					$"Could not save shopping-list total: {ex}");
+
+				await DisplayAlertAsync(
+					"Shopping List",
+					"The item was updated, but the shopping-list total could not be saved.",
+					"OK");
+			}
 		}
 
 		private void OnSearchTextChanged(
@@ -216,7 +242,7 @@ namespace shopping_app.Pages
 
 					item.PriceInCents = checked((long)(price.Value * 100m));
 					item.PickedUp = true;
-					UpdateRunningTotals();
+					await UpdateRunningTotalsAsync();
 				}
 				else
 				{
@@ -228,7 +254,7 @@ namespace shopping_app.Pages
 						pickedUp: false);
 
 					item.PickedUp = false;
-					UpdateRunningTotals();
+					await UpdateRunningTotalsAsync();
 				}
 			}
 			catch (Exception ex)

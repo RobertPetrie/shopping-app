@@ -166,6 +166,103 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
+		public async Task SetShoppingListTotalCostAsync_UpdatesParentShoppingListRecord()
+		{
+			// The running Total shown on the product checklist must also be stored
+			// in Shopping_List.TotalCost so the parent list card shows the same value.
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var shoppingList = await database.AddShoppingListAsync(
+					new DateOnly(2026, 10, 12));
+
+				await database.SetShoppingListTotalCostAsync(
+					shoppingList.ID,
+					42.37m);
+
+				var connection = await database.GetConnectionAsync();
+				var savedList = await connection
+					.Table<ShoppingList>()
+					.Where(list => list.ID == shoppingList.ID)
+					.FirstAsync();
+
+				Assert.Equal(4237L, savedList.TotalCostInCents);
+				Assert.Equal(42.37m, savedList.TotalCost);
+				Assert.NotNull(savedList.ModifiedOn);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
+		public async Task RecalculateAllShoppingListTotalsAsync_StoresTaxedTotalsOnParents()
+		{
+			// Recalculation should use picked-up prices plus category taxability,
+			// then persist the final taxed Total on each Shopping_List row.
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var categories = await database.GetProductCategoriesAsync();
+				var grocery = categories.Single(
+					category => category.Name == "Basic Grocery");
+				var snack = categories.Single(
+					category => category.Name == "Snack Food");
+
+				var bananas = await database.AddProductAsync(
+					"Parent Total Bananas",
+					productCategoryId: grocery.ID);
+
+				var chips = await database.AddProductAsync(
+					"Parent Total Chips",
+					productCategoryId: snack.ID);
+
+				var shoppingList = await database.AddShoppingListAsync(
+					new DateOnly(2026, 10, 12));
+
+				await database.AddShoppingListProductAsync(
+					shoppingList.ID,
+					bananas.ID,
+					price: 0m);
+
+				await database.AddShoppingListProductAsync(
+					shoppingList.ID,
+					chips.ID,
+					price: 0m);
+
+				await database.PickUpShoppingListProductAsync(
+					shoppingList.ID,
+					bananas.ID,
+					10.00m);
+
+				await database.PickUpShoppingListProductAsync(
+					shoppingList.ID,
+					chips.ID,
+					20.00m);
+
+				await database.RecalculateAllShoppingListTotalsAsync(1300);
+
+				var connection = await database.GetConnectionAsync();
+				var savedList = await connection
+					.Table<ShoppingList>()
+					.Where(list => list.ID == shoppingList.ID)
+					.FirstAsync();
+
+				// $10 non-taxable + $20 taxable + $2.60 HST = $32.60.
+				Assert.Equal(32.60m, savedList.TotalCost);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
 		public async Task ResetAndSeedAsync_CreatesOntarioHstAndPricedPickedUpItems()
 		{
 			// Development startup should create one Ontario HST row at 13% and
@@ -192,6 +289,16 @@ namespace ShoppingApp.Tests
 				Assert.All(
 					pickedUpItems,
 					item => Assert.True(item.PriceInCents > 0));
+
+				// Seeder finishes by recalculating the parent Shopping_List rows,
+				// including the pending list's running total from its checked items.
+				var shoppingLists = await connection
+					.Table<ShoppingList>()
+					.ToListAsync();
+
+				Assert.All(
+					shoppingLists,
+					list => Assert.True(list.TotalCostInCents > 0));
 			}
 			finally
 			{

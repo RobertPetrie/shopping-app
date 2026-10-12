@@ -1,4 +1,5 @@
 using Microsoft.Maui.Storage;
+using shopping_app.Logic;
 using shopping_app.Models;
 using SQLite;
 
@@ -849,6 +850,83 @@ namespace shopping_app.Data
                 ORDER BY product."Name" COLLATE NOCASE, product."ID";
                 """,
 				shoppingListID).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Persist the current calculated total on the parent Shopping_List row.
+		/// </summary>
+		public async Task SetShoppingListTotalCostAsync(
+			int shoppingListID,
+			decimal totalCost)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			if (totalCost < 0m)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(totalCost),
+					"Shopping list total cannot be negative.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var shoppingList = await database
+				.Table<ShoppingList>()
+				.Where(list => list.ID == shoppingListID)
+				.FirstOrDefaultAsync()
+				.ConfigureAwait(false);
+
+			if (shoppingList is null)
+			{
+				throw new KeyNotFoundException(
+					"The selected shopping list no longer exists.");
+			}
+
+			// Let the model convert dollars to whole cents and reject fractions
+			// smaller than a cent before the row is written.
+			shoppingList.TotalCost = totalCost;
+			shoppingList.ModifiedOn = DateTime.UtcNow;
+
+			await database.UpdateAsync(shoppingList).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Recalculate and persist every Shopping_List total using the current
+		/// picked-up items, ProductCategory taxability, and supplied tax rate.
+		/// </summary>
+		public async Task RecalculateAllShoppingListTotalsAsync(
+			int taxRateBasisPoints)
+		{
+			if (taxRateBasisPoints < 0 || taxRateBasisPoints > 10000)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(taxRateBasisPoints),
+					"Tax rate must be between 0 and 100 percent.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var shoppingLists = await database
+				.Table<ShoppingList>()
+				.ToListAsync()
+				.ConfigureAwait(false);
+
+			foreach (var shoppingList in shoppingLists)
+			{
+				var items = await GetShoppingListProductsAsync(shoppingList.ID)
+					.ConfigureAwait(false);
+
+				var totals = ShoppingListTotalsCalculator.Calculate(
+					items,
+					taxRateBasisPoints);
+
+				await SetShoppingListTotalCostAsync(
+					shoppingList.ID,
+					totals.Total).ConfigureAwait(false);
+			}
 		}
 
 		/// <summary>

@@ -128,6 +128,11 @@ namespace shopping_app.Pages
 				string name = currentTaxRate?.Name ?? "Sales Tax";
 				currentTaxRate = await database.SetTaxRateAsync(name, percentage);
 
+				// Existing shopping-list totals depend on the active tax rate, so
+				// refresh every stored parent total immediately after this setting changes.
+				await database.RecalculateAllShoppingListTotalsAsync(
+					currentTaxRate.RateBasisPoints);
+
 				TaxRateNameLabel.Text = currentTaxRate.Name;
 				TaxRateEntry.Text = currentTaxRate.Percentage.ToString(
 					"0.##",
