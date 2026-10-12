@@ -114,6 +114,58 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
+		public async Task GetShoppingListProductsAsync_ReturnsProductCategoryTaxability()
+		{
+			// The running-total screen depends on the database join carrying each
+			// Product Category's tax flag into the ShoppingListProduct display row.
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var categories = await database.GetProductCategoriesAsync();
+				var grocery = categories.Single(
+					category => category.Name == "Basic Grocery");
+				var snack = categories.Single(
+					category => category.Name == "Snack Food");
+
+				var bananas = await database.AddProductAsync(
+					"Tax Test Bananas",
+					productCategoryId: grocery.ID);
+
+				var chips = await database.AddProductAsync(
+					"Tax Test Chips",
+					productCategoryId: snack.ID);
+
+				var shoppingList = await database.AddShoppingListAsync(
+					new DateOnly(2026, 10, 12));
+
+				await database.AddShoppingListProductAsync(
+					shoppingList.ID,
+					bananas.ID,
+					2.00m);
+
+				await database.AddShoppingListProductAsync(
+					shoppingList.ID,
+					chips.ID,
+					3.00m);
+
+				var rows = await database.GetShoppingListProductsAsync(
+					shoppingList.ID);
+
+				Assert.False(rows.Single(
+					row => row.ProductID == bananas.ID).IsTaxable);
+
+				Assert.True(rows.Single(
+					row => row.ProductID == chips.ID).IsTaxable);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
 		public async Task ResetAndSeedAsync_CreatesOntarioHstAndPricedPickedUpItems()
 		{
 			// Development startup should create one Ontario HST row at 13% and
