@@ -26,6 +26,10 @@ namespace shopping_app.Data
 			int categoryCount = await SeedProductCategoriesAsync(connection);
 			int storageLocationCount = await SeedStorageLocationsAsync(connection);
 
+			// Development data uses Ontario's HST rate so tax calculations have
+			// a realistic default that can still be edited in Settings.
+			int taxRateCount = await SeedTaxRateAsync(database);
+
 			// Product rows can now safely resolve the lookup names to real IDs.
 			int productCount = await SeedProductsAsync(database, connection);
 
@@ -41,9 +45,18 @@ namespace shopping_app.Data
 			DevelopmentDebugArtifacts.WriteLine(
 				$"Test data reset: created {categoryCount} categories, "
 					+ $"{storageLocationCount} storage locations, "
+					+ $"{taxRateCount} tax rate, "
 					+ $"{productCount} products, "
 					+ $"{shoppingListCount} shopping lists and "
 					+ $"{shoppingListProductCount} shopping-list products.");
+		}
+
+		private static async Task<int> SeedTaxRateAsync(AppDatabase database)
+		{
+			// Ontario HST is 13%. Store the percentage through AppDatabase so the
+			// same validation and integer-basis-point representation are exercised.
+			await database.SetTaxRateAsync("Ontario HST", 13.00m);
+			return 1;
 		}
 
 		private static async Task<int> SeedProductCategoriesAsync(
@@ -368,10 +381,16 @@ namespace shopping_app.Data
 
 					if (pickedUp)
 					{
-						await database.SetShoppingListProductPickedUpAsync(
+						// Use predictable but varied prices so Subtotal and Total are
+						// immediately useful during manual testing.
+						decimal samplePrice = 1.99m
+							+ (itemIndex * 1.15m)
+							+ (listIndex * 0.10m);
+
+						await database.PickUpShoppingListProductAsync(
 							shoppingList.ID,
 							product.ID,
-							pickedUp: true);
+							samplePrice);
 					}
 
 					createdCount++;

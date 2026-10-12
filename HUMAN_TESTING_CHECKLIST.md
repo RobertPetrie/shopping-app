@@ -87,6 +87,11 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Invalid, blank, negative, or more-than-two-decimal price input shows validation feedback and does not close the popup.
 - [ ] Tapping a checked box saves PickedUp = 0 without opening the price popup.
 - [ ] Unchecking an item preserves its previously entered price.
+- [ ] The Shopping List Products screen shows Subtotal and Total in the top-right corner.
+- [ ] Subtotal includes only products currently marked picked up.
+- [ ] Total adds sales tax only for picked-up products whose Product Category is taxable.
+- [ ] Checking an item with a saved price updates Subtotal and Total immediately after the price popup is saved.
+- [ ] Unchecking an item removes its price and tax contribution from the running Subtotal and Total immediately.
 - [ ] Shopping List Product search filters immediately by Product name.
 - [ ] The Shopping List Products screen includes the same circular add button pattern as the other list screens.
 - [ ] The Shopping List Products add button currently shows a placeholder message for adding products.
@@ -99,6 +104,8 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] With `ResetTestDataOnStartup = true`, edits made to sample products are replaced by the original sample values after restarting.
 - [ ] With `ResetTestDataOnStartup = true`, user-created shopping lists are removed after restarting the app.
 - [ ] After each reset, exactly 7 Product Categories and 9 Storage Locations are recreated before using the Product form.
+- [ ] After each reset, exactly one TaxRate row is recreated as Ontario HST at 13%.
+- [ ] Seeded ShoppingListProduct rows that are already picked up have non-zero prices so running totals are visible.
 - [ ] After each reset, exactly 28 sample products and 12 sample shopping lists are recreated.
 - [ ] The pending sample shopping list appears with no total entered.
 - [ ] Every one of the 12 sample shopping lists contains exactly 8 ShoppingListProduct rows.
@@ -112,6 +119,11 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Shopping Lists, Products, and Settings all appear as separate tabs.
 - [ ] The Settings tab uses a recognizable gear icon.
 - [ ] Tapping Settings opens the Settings page without errors.
+- [ ] Settings shows an editable Sales tax rate (%) field.
+- [ ] The seeded tax setting is labeled Ontario HST and loads as 13%.
+- [ ] Saving a new valid tax rate persists after leaving and returning to Settings.
+- [ ] Invalid tax rates are rejected with validation feedback.
+- [ ] Changing the tax rate changes subsequent Shopping List Product totals.
 - [ ] Switching between Shopping Lists, Products, and Settings works repeatedly.
 - [ ] Returning to a tab refreshes its data when needed.
 - [ ] Bottom tab icons and labels display correctly.

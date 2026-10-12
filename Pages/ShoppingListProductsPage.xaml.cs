@@ -12,6 +12,7 @@ namespace shopping_app.Pages
 	public partial class ShoppingListProductsPage : ContentPage, IQueryAttributable
 	{
 		private AppDatabase? database;
+		private TaxRate? taxRate;
 		private int shoppingListID;
 		private bool isLoading;
 		private bool isPageActive;
@@ -96,7 +97,9 @@ namespace shopping_app.Pages
 				database ??= services.GetRequiredService<AppDatabase>();
 
 				items = await database.GetShoppingListProductsAsync(shoppingListID);
+				taxRate = await database.GetTaxRateAsync();
 				ApplyFilter();
+				UpdateRunningTotals();
 			}
 			catch (Exception ex)
 			{
@@ -134,6 +137,21 @@ namespace shopping_app.Pages
 				searchText);
 
 			return displayedItems.Count;
+		}
+
+		private void UpdateRunningTotals()
+		{
+			int rateBasisPoints = taxRate?.RateBasisPoints ?? 0;
+
+			var totals = ShoppingListTotalsCalculator.Calculate(
+				items,
+				rateBasisPoints);
+
+			SubtotalLabel.Text =
+				$"Subtotal: {totals.Subtotal.ToString("C", System.Globalization.CultureInfo.CurrentCulture)}";
+
+			TotalLabel.Text =
+				$"Total: {totals.Total.ToString("C", System.Globalization.CultureInfo.CurrentCulture)}";
 		}
 
 		private void OnSearchTextChanged(
@@ -198,6 +216,7 @@ namespace shopping_app.Pages
 
 					item.PriceInCents = checked((long)(price.Value * 100m));
 					item.PickedUp = true;
+					UpdateRunningTotals();
 				}
 				else
 				{
@@ -209,6 +228,7 @@ namespace shopping_app.Pages
 						pickedUp: false);
 
 					item.PickedUp = false;
+					UpdateRunningTotals();
 				}
 			}
 			catch (Exception ex)

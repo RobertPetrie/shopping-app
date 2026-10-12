@@ -16,7 +16,7 @@
 
         <Grid
             Grid.Row="0"
-            ColumnDefinitions="Auto,*"
+            ColumnDefinitions="Auto,*,Auto"
             ColumnSpacing="16">
 
             <VerticalStackLayout
@@ -45,6 +45,29 @@
                 VerticalOptions="Center"
                 TextChanged="OnSearchTextChanged"
                 SemanticProperties.Description="Search products on this shopping list" />
+
+            <!-- Running amounts update as products are checked or unchecked. -->
+            <VerticalStackLayout
+                Grid.Column="2"
+                Spacing="2"
+                HorizontalOptions="End"
+                VerticalOptions="Center">
+
+                <Label
+                    x:Name="SubtotalLabel"
+                    Text="Subtotal: $0.00"
+                    FontSize="14"
+                    HorizontalTextAlignment="End"
+                    SemanticProperties.Description="Picked-up item subtotal before tax" />
+
+                <Label
+                    x:Name="TotalLabel"
+                    Text="Total: $0.00"
+                    FontSize="18"
+                    FontAttributes="Bold"
+                    HorizontalTextAlignment="End"
+                    SemanticProperties.Description="Picked-up item total including tax" />
+            </VerticalStackLayout>
         </Grid>
 
         <CollectionView

@@ -135,6 +135,11 @@ namespace shopping_app.Data
 					await EnsureStorageLocationsAsync(newConnection)
 						.ConfigureAwait(false);
 
+					// Sales tax is stored separately so the Settings screen can change
+					// the percentage without changing Product or shopping-list rows.
+					await newConnection.CreateTableAsync<TaxRate>()
+						.ConfigureAwait(false);
+
 					// Older app databases may not have the newer Product columns.
 					// Add them before sqlite-net compares the Product model so
 					// existing rows remain intact.
@@ -708,6 +713,7 @@ namespace shopping_app.Data
 				transaction.Execute("DELETE FROM \"Shopping_List\";");
 				transaction.Execute("DELETE FROM \"StorageLocation\";");
 				transaction.Execute("DELETE FROM \"ProductCategory\";");
+				transaction.Execute("DELETE FROM \"TaxRate\";");
 
 				// Reset AUTOINCREMENT counters so each fresh test-data load starts
 				// from the same predictable IDs as a brand-new database.
@@ -719,10 +725,68 @@ namespace shopping_app.Data
                         'Product',
                         'Shopping_List',
                         'StorageLocation',
-                        'ProductCategory'
+                        'ProductCategory',
+                        'TaxRate'
                     );
                     """);
 			}).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Return the single app-wide sales-tax setting, or null before one has
+		/// been configured.
+		/// </summary>
+		public async Task<TaxRate?> GetTaxRateAsync()
+		{
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database
+				.Table<TaxRate>()
+				.OrderBy(rate => rate.ID)
+				.FirstOrDefaultAsync()
+				.ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Save the app-wide sales-tax percentage. The first row is reused so
+		/// shopping-list calculations always have one unambiguous rate.
+		/// </summary>
+		public async Task<TaxRate> SetTaxRateAsync(
+			string name,
+			decimal percentage)
+		{
+			if (string.IsNullOrWhiteSpace(name))
+			{
+				throw new ArgumentException(
+					"A tax-rate name is required.",
+					nameof(name));
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var taxRate = await database
+				.Table<TaxRate>()
+				.OrderBy(rate => rate.ID)
+				.FirstOrDefaultAsync()
+				.ConfigureAwait(false);
+
+			if (taxRate is null)
+			{
+				taxRate = new TaxRate
+				{
+					Name = name.Trim(),
+					Percentage = percentage
+				};
+
+				await database.InsertAsync(taxRate).ConfigureAwait(false);
+			}
+			else
+			{
+				taxRate.Name = name.Trim();
+				taxRate.Percentage = percentage;
+				await database.UpdateAsync(taxRate).ConfigureAwait(false);
+			}
+
+			return taxRate;
 		}
 
 		/// <summary>
@@ -774,10 +838,13 @@ namespace shopping_app.Data
                     item."ProductID",
                     product."Name" AS "ProductName",
                     item."Price" AS "PriceInCents",
-                    item."PickedUp"
+                    item."PickedUp",
+                    COALESCE(category."IsTaxable", 0) AS "IsTaxable"
                 FROM "ShoppingListProduct" AS item
                 INNER JOIN "Product" AS product
                     ON product."ID" = item."ProductID"
+                LEFT JOIN "ProductCategory" AS category
+                    ON category."ID" = product."ProductCategoryID"
                 WHERE item."ShoppingListID" = ?
                 ORDER BY product."Name" COLLATE NOCASE, product."ID";
                 """,
