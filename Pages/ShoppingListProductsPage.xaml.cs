@@ -150,7 +150,7 @@ namespace shopping_app.Pages
 			SortShoppingListProductsButton.Text = sortMode switch
 			{
 				ShoppingListProductSortMode.NameDescending => "Z → A",
-				ShoppingListProductSortMode.PickedUpStatus => "☑",
+				ShoppingListProductSortMode.PickedUpStatus => "✓",
 				_ => "A → Z"
 			};
 
