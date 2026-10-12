@@ -12,6 +12,11 @@ namespace shopping_app.Models
 
 		public string ProductName { get; set; } = string.Empty;
 
+		// SQLite stores the item's shopping-trip price as whole cents.
+		public long PriceInCents { get; set; }
+
+		public decimal Price => PriceInCents / 100m;
+
 		// SQLite maps 0 to false and 1 to true.
 		public bool PickedUp { get; set; }
 	}

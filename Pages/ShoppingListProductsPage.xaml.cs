@@ -166,34 +166,76 @@ namespace shopping_app.Pages
 				return;
 			}
 
-			// A checkbox change flips a boolean, so the value before this tap is
-			// always the opposite of the new value reported by the event.
 			bool previousValue = !e.Value;
-			item.PickedUp = e.Value;
 
 			try
 			{
-				await database.SetShoppingListProductPickedUpAsync(
-					item.ShoppingListID,
-					item.ProductID,
-					e.Value);
+				if (e.Value)
+				{
+					// Picking an item up requires the price paid. Show a centered
+					// modal card and do not commit the checkmark until Save is tapped.
+					decimal? existingPrice = item.PriceInCents > 0
+						? item.Price
+						: null;
+
+					var popup = new PriceEntryPopupPage(
+						item.ProductName,
+						existingPrice);
+
+					await Navigation.PushModalAsync(popup, animated: false);
+					decimal? price = await popup.WaitForResultAsync();
+
+					if (!price.HasValue)
+					{
+						RestoreCheckbox(checkBox, item, previousValue);
+						return;
+					}
+
+					await database.PickUpShoppingListProductAsync(
+						item.ShoppingListID,
+						item.ProductID,
+						price.Value);
+
+					item.PriceInCents = checked((long)(price.Value * 100m));
+					item.PickedUp = true;
+				}
+				else
+				{
+					// Unchecking does not ask for a price. Keep the stored price so a
+					// mistaken tap does not erase what the shopper previously entered.
+					await database.SetShoppingListProductPickedUpAsync(
+						item.ShoppingListID,
+						item.ProductID,
+						pickedUp: false);
+
+					item.PickedUp = false;
+				}
 			}
 			catch (Exception ex)
 			{
 				DevelopmentDebugArtifacts.WriteLine(
-					$"Could not update picked-up status: {ex}");
+					$"Could not update picked-up status or price: {ex}");
 
-				// Put the checkbox back to the value that is still stored in SQLite.
-				suppressPickedUpChange = true;
-				item.PickedUp = previousValue;
-				checkBox.IsChecked = previousValue;
-				suppressPickedUpChange = false;
+				RestoreCheckbox(checkBox, item, previousValue);
 
 				await DisplayAlertAsync(
 					"Shopping List",
 					"Could not update this product. Please try again.",
 					"OK");
 			}
+		}
+
+		private void RestoreCheckbox(
+			CheckBox checkBox,
+			ShoppingListProductListItem item,
+			bool value)
+		{
+			// Updating IsChecked raises CheckedChanged again, so suppress that
+			// event while returning the UI to the value still stored in SQLite.
+			suppressPickedUpChange = true;
+			item.PickedUp = value;
+			checkBox.IsChecked = value;
+			suppressPickedUpChange = false;
 		}
 
 		private async void OnAddProductClicked(object? sender, EventArgs e)

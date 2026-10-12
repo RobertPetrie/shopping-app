@@ -773,6 +773,7 @@ namespace shopping_app.Data
                     item."ShoppingListID",
                     item."ProductID",
                     product."Name" AS "ProductName",
+                    item."Price" AS "PriceInCents",
                     item."PickedUp"
                 FROM "ShoppingListProduct" AS item
                 INNER JOIN "Product" AS product
@@ -781,6 +782,64 @@ namespace shopping_app.Data
                 ORDER BY product."Name" COLLATE NOCASE, product."ID";
                 """,
 				shoppingListID).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Mark one shopping-list product as picked up and save the price paid.
+		/// The price and checkbox state are written together so they cannot drift.
+		/// </summary>
+		public async Task PickUpShoppingListProductAsync(
+			int shoppingListID,
+			int productID,
+			decimal price)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			if (productID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(productID),
+					"Product ID must be greater than zero.");
+			}
+
+			if (price < 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(price),
+					"Price cannot be negative.");
+			}
+
+			// Reuse the model's currency conversion so fractions smaller than
+			// one cent are rejected exactly the same way everywhere.
+			var priceValue = new ShoppingListProduct
+			{
+				Price = price
+			};
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			int rowsUpdated = await database.ExecuteAsync(
+				"""
+                UPDATE "ShoppingListProduct"
+                SET "Price" = ?,
+                    "PickedUp" = 1
+                WHERE "ShoppingListID" = ?
+                  AND "ProductID" = ?;
+                """,
+				priceValue.PriceInCents,
+				shoppingListID,
+				productID).ConfigureAwait(false);
+
+			if (rowsUpdated == 0)
+			{
+				throw new KeyNotFoundException(
+					"This product is no longer on the selected shopping list.");
+			}
 		}
 
 		/// <summary>

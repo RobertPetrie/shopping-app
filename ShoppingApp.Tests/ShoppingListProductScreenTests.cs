@@ -189,6 +189,54 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
+		public async Task PickUpShoppingListProductAsync_SavesPriceAndCheckedStateTogether()
+		{
+			// Saving the price popup should write the exact cents and PickedUp = 1
+			// to the same ShoppingListProduct row in one database update.
+			string databasePath = CreateTemporaryDatabasePath();
+			var database = new AppDatabase(databasePath);
+
+			try
+			{
+				var shoppingList = await database.AddShoppingListAsync(
+					new DateOnly(2026, 10, 11));
+
+				var product = await database.AddProductAsync("Coffee");
+				await database.AddShoppingListProductAsync(
+					shoppingList.ID,
+					product.ID,
+					price: 0m);
+
+				await database.PickUpShoppingListProductAsync(
+					shoppingList.ID,
+					product.ID,
+					12.34m);
+
+				var connection = await database.GetConnectionAsync();
+				var row = await connection
+					.Table<ShoppingListProduct>()
+					.Where(item =>
+						item.ShoppingListID == shoppingList.ID
+						&& item.ProductID == product.ID)
+					.FirstAsync();
+
+				Assert.Equal(1234L, row.PriceInCents);
+				Assert.True(row.PickedUp);
+
+				// The screen query must bring that price back with the Product name.
+				var screenItem = (await database.GetShoppingListProductsAsync(
+					shoppingList.ID)).Single();
+
+				Assert.Equal(12.34m, screenItem.Price);
+				Assert.True(screenItem.PickedUp);
+			}
+			finally
+			{
+				await CloseAndDeleteDatabaseAsync(database);
+			}
+		}
+
+		[Fact]
 		public async Task ResetAndSeedAsync_AllShoppingListsHaveChecklistProducts()
 		{
 			// Every sample shopping list should open to useful product data instead

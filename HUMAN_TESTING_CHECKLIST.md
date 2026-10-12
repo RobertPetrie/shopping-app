@@ -80,8 +80,13 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Each row shows a checkbox on the right.
 - [ ] A stored PickedUp value of 0 appears unchecked.
 - [ ] A stored PickedUp value of 1 appears checked.
-- [ ] Tapping an unchecked box saves PickedUp = 1.
-- [ ] Tapping a checked box saves PickedUp = 0.
+- [ ] Tapping an unchecked box opens a centered price-entry popup before the item is saved as picked up.
+- [ ] The price popup shows the Product name, a price field, Save, and Cancel.
+- [ ] Saving a valid price stores the amount as whole cents and saves PickedUp = 1.
+- [ ] Canceling the price popup leaves the item unchecked and does not change its stored price.
+- [ ] Invalid, blank, negative, or more-than-two-decimal price input shows validation feedback and does not close the popup.
+- [ ] Tapping a checked box saves PickedUp = 0 without opening the price popup.
+- [ ] Unchecking an item preserves its previously entered price.
 - [ ] Shopping List Product search filters immediately by Product name.
 - [ ] The Shopping List Products screen includes the same circular add button pattern as the other list screens.
 - [ ] The Shopping List Products add button currently shows a placeholder message for adding products.
