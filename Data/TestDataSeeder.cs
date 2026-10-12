@@ -33,11 +33,17 @@ namespace shopping_app.Data
 				database,
 				connection);
 
+			// Add child rows only after Products and Shopping Lists exist.
+			int shoppingListProductCount = await SeedShoppingListProductsAsync(
+				database,
+				connection);
+
 			DevelopmentDebugArtifacts.WriteLine(
 				$"Test data reset: created {categoryCount} categories, "
 					+ $"{storageLocationCount} storage locations, "
-					+ $"{productCount} products and "
-					+ $"{shoppingListCount} shopping lists.");
+					+ $"{productCount} products, "
+					+ $"{shoppingListCount} shopping lists and "
+					+ $"{shoppingListProductCount} shopping-list products.");
 		}
 
 		private static async Task<int> SeedProductCategoriesAsync(
@@ -312,6 +318,56 @@ namespace shopping_app.Data
 					item.Date,
 					item.TotalCost,
 					item.PickedUp);
+
+				createdCount++;
+			}
+
+			return createdCount;
+		}
+
+		private static async Task<int> SeedShoppingListProductsAsync(
+			AppDatabase database,
+			SQLite.SQLiteAsyncConnection connection)
+		{
+			// Give the pending sample list realistic checklist rows immediately.
+			var pendingList = await connection
+				.Table<ShoppingList>()
+				.Where(list => list.ShoppingDateStorage == "2026-10-11")
+				.FirstAsync();
+
+			var testItems = new (string ProductName, bool PickedUp)[]
+			{
+				("Disco Bananas", false),
+				("Ninja Noodles", false),
+				("Emergency Chocolate", true),
+				("Cosmic Cola", true),
+				("Bathroom Tissue", false),
+				("Laundry Detergent", false),
+				("Frozen Pizza", false),
+				("Secret Agent Apples", false)
+			};
+
+			int createdCount = 0;
+
+			foreach (var item in testItems)
+			{
+				var product = await connection
+					.Table<Product>()
+					.Where(value => value.Name == item.ProductName)
+					.FirstAsync();
+
+				await database.AddShoppingListProductAsync(
+					pendingList.ID,
+					product.ID,
+					price: 0m);
+
+				if (item.PickedUp)
+				{
+					await database.SetShoppingListProductPickedUpAsync(
+						pendingList.ID,
+						product.ID,
+						pickedUp: true);
+				}
 
 				createdCount++;
 			}

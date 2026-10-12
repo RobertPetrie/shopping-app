@@ -74,6 +74,18 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Shopping-list empty state looks correct when there are no matches.
 - [ ] Add Shopping List button is visible and styled correctly.
 - [ ] Add Shopping List button currently shows the placeholder message instead of creating a blank record.
+- [ ] Tapping a shopping-list card opens that list's Product screen.
+- [ ] The Shopping List Products screen shows only ShoppingListProduct rows related to the selected shopping list.
+- [ ] Each row displays the related Product name.
+- [ ] Each row shows a checkbox on the right.
+- [ ] A stored PickedUp value of 0 appears unchecked.
+- [ ] A stored PickedUp value of 1 appears checked.
+- [ ] Tapping an unchecked box saves PickedUp = 1.
+- [ ] Tapping a checked box saves PickedUp = 0.
+- [ ] Shopping List Product search filters immediately by Product name.
+- [ ] The Shopping List Products screen includes the same circular add button pattern as the other list screens.
+- [ ] The Shopping List Products add button currently shows a placeholder message for adding products.
+- [ ] Back navigation returns to the Shopping Lists screen.
 
 ## Test Data
 
@@ -84,6 +96,7 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] After each reset, exactly 7 Product Categories and 9 Storage Locations are recreated before using the Product form.
 - [ ] After each reset, exactly 28 sample products and 12 sample shopping lists are recreated.
 - [ ] The pending sample shopping list appears with no total entered.
+- [ ] The pending October 11, 2026 sample list contains 8 ShoppingListProduct rows with both checked and unchecked examples.
 - [ ] With `ResetTestDataOnStartup = false`, restarting the app preserves existing database changes and does not reload test data.
 
 ## Navigation and Tabs

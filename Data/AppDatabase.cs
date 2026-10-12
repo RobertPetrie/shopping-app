@@ -752,6 +752,81 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
+		/// Return the products assigned to one shopping list, including the
+		/// Product name needed by the checklist screen.
+		/// </summary>
+		public async Task<List<ShoppingListProductListItem>>
+			GetShoppingListProductsAsync(int shoppingListID)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			return await database.QueryAsync<ShoppingListProductListItem>(
+				"""
+                SELECT
+                    item."ShoppingListID",
+                    item."ProductID",
+                    product."Name" AS "ProductName",
+                    item."PickedUp"
+                FROM "ShoppingListProduct" AS item
+                INNER JOIN "Product" AS product
+                    ON product."ID" = item."ProductID"
+                WHERE item."ShoppingListID" = ?
+                ORDER BY product."Name" COLLATE NOCASE, product."ID";
+                """,
+				shoppingListID).ConfigureAwait(false);
+		}
+
+		/// <summary>
+		/// Store the checkbox state for one product on one shopping list.
+		/// SQLite stores false as 0 and true as 1.
+		/// </summary>
+		public async Task SetShoppingListProductPickedUpAsync(
+			int shoppingListID,
+			int productID,
+			bool pickedUp)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(shoppingListID),
+					"Shopping list ID must be greater than zero.");
+			}
+
+			if (productID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(
+					nameof(productID),
+					"Product ID must be greater than zero.");
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+
+			int rowsUpdated = await database.ExecuteAsync(
+				"""
+                UPDATE "ShoppingListProduct"
+                SET "PickedUp" = ?
+                WHERE "ShoppingListID" = ?
+                  AND "ProductID" = ?;
+                """,
+				pickedUp ? 1 : 0,
+				shoppingListID,
+				productID).ConfigureAwait(false);
+
+			if (rowsUpdated == 0)
+			{
+				throw new KeyNotFoundException(
+					"This product is no longer on the selected shopping list.");
+			}
+		}
+
+		/// <summary>
 		/// Link an existing product to an existing shopping list.
 		/// A product can appear only once in a particular list.
 		/// </summary>

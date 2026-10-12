@@ -13,6 +13,11 @@ namespace shopping_app
 			Routing.RegisterRoute(
 				nameof(ProductDetailPage),
 				typeof(ProductDetailPage));
+
+			// A shopping-list card opens its own checklist of related products.
+			Routing.RegisterRoute(
+				nameof(ShoppingListProductsPage),
+				typeof(ShoppingListProductsPage));
 		}
 	}
 }
