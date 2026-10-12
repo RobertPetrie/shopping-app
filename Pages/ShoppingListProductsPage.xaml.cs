@@ -213,12 +213,17 @@ namespace shopping_app.Pages
 			if (suppressPickedUpChange || isLoading
 				|| sender is not CheckBox checkBox
 				|| checkBox.BindingContext is not ShoppingListProductListItem item
-				|| database is null)
+				|| database is null
+				|| !ShoppingListPickedUpChange.ShouldHandle(
+					item.PickedUp,
+					e.Value))
 			{
 				return;
 			}
 
-			bool previousValue = !e.Value;
+			// The binding is one-way, so the model still holds the saved value
+			// until this user-triggered change has been successfully persisted.
+			bool previousValue = item.PickedUp;
 
 			try
 			{

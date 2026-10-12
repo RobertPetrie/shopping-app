@@ -131,7 +131,7 @@
                                 <!-- Empty maps to SQLite 0; checked maps to SQLite 1. -->
                                 <CheckBox
                                     Grid.Column="1"
-                                    IsChecked="{Binding PickedUp}"
+                                    IsChecked="{Binding PickedUp, Mode=OneWay}"
                                     VerticalOptions="Center"
                                     CheckedChanged="OnPickedUpChanged"
                                     SemanticProperties.Description="Picked up" />

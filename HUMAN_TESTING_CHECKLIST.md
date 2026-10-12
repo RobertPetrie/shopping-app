@@ -80,6 +80,8 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Each row shows a checkbox on the right.
 - [ ] A stored PickedUp value of 0 appears unchecked.
 - [ ] A stored PickedUp value of 1 appears checked.
+- [ ] Opening the screen with pre-checked seeded items does not open the price popup automatically.
+- [ ] Scrolling/recycling rows does not open the price popup unless the user actually changes a checkbox.
 - [ ] Tapping an unchecked box opens a centered price-entry popup before the item is saved as picked up.
 - [ ] On Windows, the price-entry popup opens without a Shell/modal-navigation COMException.
 - [ ] The price popup shows the Product name, a price field, Save, and Cancel.
