@@ -75,3 +75,13 @@ jobs:
           --runtime win-x64
           -p:TargetFrameworks=net10.0-windows10.0.19041.0
           --no-restore
+
+
+  # A merge/push to main is not considered healthy until the Android app
+  # has actually installed and stayed open in an emulator. Keep this off
+  # pull requests and manual Build Shopping App runs to avoid extra minutes.
+  android-emulator:
+    name: Android emulator smoke test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, build-windows]
+    uses: ./.github/workflows/android-emulator-smoke-test.yml
