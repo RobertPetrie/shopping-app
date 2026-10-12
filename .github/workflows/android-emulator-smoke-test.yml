@@ -1,0 +1,115 @@
+name: Test Android Emulator
+
+# Manual only: this boots a real Android emulator in GitHub Actions, installs
+# the current branch's APK, launches it, and checks that the app stays open.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-emulator-smoke-test:
+    name: Launch app in Android emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v5
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI Android workload
+        run: dotnet workload install maui-android
+
+      - name: Restore Android dependencies
+        run: >
+          dotnet restore shopping-app.csproj
+          -p:TargetFrameworks=net10.0-android
+
+      - name: Build signed debug APK
+        run: >
+          dotnet publish shopping-app.csproj
+          --configuration Debug
+          --framework net10.0-android
+          -p:TargetFrameworks=net10.0-android
+          -p:AndroidPackageFormats=apk
+          --no-restore
+
+      - name: Prepare APK path
+        shell: bash
+        run: |
+          APK_PATH="$(find bin/Debug/net10.0-android -type f -name '*-Signed.apk' | head -n 1)"
+
+          if [ -z "$APK_PATH" ]; then
+            echo "No signed APK was produced."
+            find bin/Debug/net10.0-android -type f -name '*.apk' -print
+            exit 1
+          fi
+
+          echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
+          echo "Using APK: $APK_PATH"
+
+      - name: Boot emulator, install app, and verify launch
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            set -e
+
+            mkdir -p android-emulator-results
+
+            echo "Installing APK..."
+            adb install -r "$APK_PATH"
+
+            # Start with a clean log so any launch failure is easy to find.
+            adb logcat -c
+
+            echo "Launching shopping app..."
+            adb shell am force-stop com.companyname.shoppingapp
+            adb shell monkey               -p com.companyname.shoppingapp               -c android.intent.category.LAUNCHER               1
+
+            # Give MAUI and the startup test-data seeder time to finish.
+            sleep 20
+
+            echo "Capturing emulator screenshot..."
+            adb exec-out screencap -p               > android-emulator-results/app-after-launch.png || true
+
+            echo "Capturing Android logs..."
+            adb logcat -d               > android-emulator-results/logcat.txt || true
+
+            echo "Checking whether the app is still the foreground activity..."
+            RESUMED_ACTIVITY="$(adb shell dumpsys activity activities               | grep -m 1 'mResumedActivity' || true)"
+
+            echo "$RESUMED_ACTIVITY"               | tee android-emulator-results/resumed-activity.txt
+
+            if ! echo "$RESUMED_ACTIVITY"               | grep -q 'com.companyname.shoppingapp'; then
+              echo "::error::The shopping app did not remain open after launch."
+              echo "Recent Android runtime output:"
+              grep -E -i                 'FATAL EXCEPTION|AndroidRuntime|shoppingapp|shopping_app'                 android-emulator-results/logcat.txt                 | tail -n 250 || true
+              exit 1
+            fi
+
+            echo "Shopping app launched and remained in the foreground."
+
+      - name: Upload emulator screenshot and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-smoke-test-results
+          path: android-emulator-results/
+          if-no-files-found: warn
+          retention-days: 14
