@@ -92,6 +92,24 @@ jobs:
             echo "Capturing Android logs..."
             adb logcat -d               > android-emulator-results/logcat.txt || true
 
+            echo "Capturing the app's own debug.log..."
+            APP_DEBUG_LOG="files/DebugData/debug.log"
+
+            # Debug APKs are debuggable, so run-as can read the app's private
+            # files without rooting the emulator. Keep a useful note in the
+            # artifact even if the app failed before debug.log was created.
+            if adb shell run-as com.companyname.shoppingapp test -f "$APP_DEBUG_LOG"; then
+              adb exec-out run-as com.companyname.shoppingapp cat "$APP_DEBUG_LOG" \
+                > android-emulator-results/app-debug.log || true
+            else
+              {
+                echo "The app debug log was not found at $APP_DEBUG_LOG."
+                echo
+                echo "Files available in the app's private files directory:"
+                adb shell run-as com.companyname.shoppingapp find files -maxdepth 3 -type f -print || true
+              } > android-emulator-results/app-debug.log
+            fi
+
             echo "Checking whether the app is still the foreground activity..."
             RESUMED_ACTIVITY="$(adb shell dumpsys activity activities               | grep -m 1 'mResumedActivity' || true)"
 
