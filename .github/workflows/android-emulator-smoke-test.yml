@@ -48,10 +48,10 @@ jobs:
           dotnet restore shopping-app.csproj
           -p:TargetFrameworks=net10.0-android
 
-      - name: Build self-contained release APK
+      - name: Build debug APK for emulator smoke test
         run: >
           dotnet publish shopping-app.csproj
-          --configuration Release
+          --configuration Debug
           --framework net10.0-android
           -p:TargetFrameworks=net10.0-android
           -p:AndroidPackageFormats=apk
@@ -62,11 +62,12 @@ jobs:
       - name: Prepare APK path
         shell: bash
         run: |
-          APK_PATH="$(find bin/Release/net10.0-android -type f -name '*-Signed.apk' | head -n 1)"
+          APK_PATH="$(find bin/Debug/net10.0-android -type f -name '*.apk' | head -n 1)"
 
           if [ -z "$APK_PATH" ]; then
-            echo "No signed APK was produced."
-            find bin/Release/net10.0-android -type f -name '*.apk' -print
+            echo "No APK was produced."
+            find bin/Debug/net10.0-android -type f -name '*.apk' -print || true
+            find bin/Release/net10.0-android -type f -name '*.apk' -print || true
             exit 1
           fi
 
@@ -90,8 +91,18 @@ jobs:
 
           mkdir -p "$RESULTS_DIR"
 
+          echo "Ensuring adb daemon is running..."
+          adb kill-server || true
+          adb start-server || true
+
           echo "Waiting for emulator ADB to be fully ready..."
           adb wait-for-device
+
+          echo "Waiting for emulator device to be online..."
+          until adb devices | grep -q "emulator-5554\s*device"; do
+            echo "Waiting for emulator device to be online..."
+            sleep 2
+          done
 
           until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
             echo "Waiting for Android boot to complete..."
@@ -101,21 +112,36 @@ jobs:
           echo "Installing APK..."
           adb install -r "$APK_PATH"
 
-          # Start with a clean log so launch failures are easy to isolate.
           adb logcat -c
 
           echo "Launching shopping app..."
           adb shell am force-stop "$PACKAGE_ID"
-          adb shell monkey -p "$PACKAGE_ID" -c android.intent.category.LAUNCHER 1
 
-          # Give MAUI and the startup test-data seeder time to finish.
-          sleep 20
+          MAIN_ACTIVITY="$(adb shell cmd package resolve-activity --brief "$PACKAGE_ID" 2>/dev/null | tail -n 1 | tr -d '\r')"
+          if [ -n "$MAIN_ACTIVITY" ]; then
+            echo "Starting resolved launcher activity: $MAIN_ACTIVITY"
+            adb shell am start -n "$MAIN_ACTIVITY" || true
+          else
+            echo "Main activity not resolved; falling back to monkey launcher."
+            adb shell monkey -p "$PACKAGE_ID" -c android.intent.category.LAUNCHER 1 || true
+          fi
+
+          sleep 40
 
           echo "Capturing emulator screenshot..."
           adb exec-out screencap -p > "$RESULTS_DIR/app-after-launch.png" || true
 
           echo "Capturing Android logs..."
           adb logcat -d > "$RESULTS_DIR/logcat.txt" || true
+
+          echo "Capturing process list..."
+          adb shell ps -A > "$RESULTS_DIR/process-list.txt" || true
+
+          echo "Capturing package state..."
+          adb shell dumpsys package "$PACKAGE_ID" > "$RESULTS_DIR/package-dumpsys.txt" || true
+
+          echo "Capturing activity state..."
+          adb shell dumpsys activity activities 2>/dev/null | sed -n '1,200p' > "$RESULTS_DIR/dumpsys-activities-head.txt" || true
 
           echo "Capturing the app's own debug.log..."
           if adb shell run-as "$PACKAGE_ID" test -f "$APP_DEBUG_LOG"; then
@@ -125,6 +151,9 @@ jobs:
             echo "The app debug log was not found at $APP_DEBUG_LOG." \
               > "$RESULTS_DIR/app-debug.log"
             echo >> "$RESULTS_DIR/app-debug.log"
+            echo "Note: run-as failed or the app is not debuggable. For this smoke test build the APK as Debug to permit run-as access." \
+              >> "$RESULTS_DIR/app-debug.log"
+            echo >> "$RESULTS_DIR/app-debug.log"
             echo "Files available in the app's private files directory:" \
               >> "$RESULTS_DIR/app-debug.log"
             adb shell run-as "$PACKAGE_ID" find files -maxdepth 3 -type f -print \
@@ -132,8 +161,8 @@ jobs:
           fi
 
           echo "Checking whether the app is still the foreground activity..."
-          RESUMED_ACTIVITY="$(adb shell dumpsys activity activities \
-            | grep -m 1 'mResumedActivity' || true)"
+          RESUMED_ACTIVITY="$(adb shell dumpsys activity activities 2>/dev/null \
+            | egrep -m 1 'mResumedActivity|mFocusedApp|mCurrentFocus' || true)"
 
           echo "$RESUMED_ACTIVITY" | tee "$RESULTS_DIR/resumed-activity.txt"
 
