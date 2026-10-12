@@ -26,7 +26,7 @@ namespace shopping_app.WinUI
 
 		private static void OnWinUiUnhandledException(
 			object sender,
-			UnhandledExceptionEventArgs e)
+			Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
 		{
 			DevelopmentDebugArtifacts.WriteLine(
 				$"[WINUI UNHANDLED] Message={e.Message}");
