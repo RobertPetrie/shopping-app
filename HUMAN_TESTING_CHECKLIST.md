@@ -93,8 +93,10 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Unchecking an item preserves its previously entered price.
 - [ ] The Shopping List Products screen shows Subtotal and Total in the upper-right corner above the search/sort row.
 - [ ] The Shopping List Products sort button appears to the right of search where the totals previously sat.
-- [ ] The Shopping List Products sort button toggles A → Z and Z → A only.
-- [ ] Search and A → Z / Z → A sorting work together.
+- [ ] The Shopping List Products sort button cycles A → Z → Z → A → ☑ → A → Z.
+- [ ] The ☑ sort groups unpicked products first and picked-up products underneath, alphabetized within each group.
+- [ ] Checking or unchecking an item while ☑ sort is active immediately moves it into the correct group.
+- [ ] Search works together with A → Z, Z → A, and ☑ pickup-status sorting.
 - [ ] Subtotal includes only products currently marked picked up.
 - [ ] Total adds sales tax only for picked-up products whose Product Category is taxable.
 - [ ] Checking an item with a saved price updates Subtotal and Total immediately after the price popup is saved.

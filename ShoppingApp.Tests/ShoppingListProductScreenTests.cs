@@ -75,6 +75,39 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
+		public void Filter_WithPickedUpSort_KeepsUnpickedProductsFirst()
+		{
+			// Pickup sorting is meant for an active shopping trip, so products
+			// still needed stay at the top and checked products move underneath.
+			var result = ShoppingListProductFilter.Filter(
+				FilterItems,
+				string.Empty,
+				ShoppingListProductSortMode.PickedUpStatus);
+
+			Assert.Equal(
+				["Bananas", "Chocolate", "Apple Juice"],
+				result.Select(item => item.ProductName));
+			Assert.False(result[0].PickedUp);
+			Assert.False(result[1].PickedUp);
+			Assert.True(result[2].PickedUp);
+		}
+
+		[Fact]
+		public void Filter_WithSearchAndPickedUpSort_AppliesBothRules()
+		{
+			// Pickup grouping should continue to work after the shopper filters the
+			// checklist with the search box.
+			var result = ShoppingListProductFilter.Filter(
+				FilterItems,
+				"a",
+				ShoppingListProductSortMode.PickedUpStatus);
+
+			Assert.Equal(
+				["Bananas", "Chocolate", "Apple Juice"],
+				result.Select(item => item.ProductName));
+		}
+
+		[Fact]
 		public void Filter_WithSearch_IgnoresCaseAndExtraSpaces()
 		{
 			// The live search should be forgiving about capitalization and spaces

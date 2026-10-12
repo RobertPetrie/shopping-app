@@ -22,7 +22,7 @@ namespace shopping_app.Pages
 		private bool isPricePopupOpen;
 		private TaskCompletionSource<decimal?>? pricePopupResultSource;
 
-		// Keep this checklist sorter intentionally simple: A-Z or Z-A.
+		// Keep this checklist sorter simple: A-Z, Z-A, or pickup status.
 		private ShoppingListProductSortMode sortMode =
 			ShoppingListProductSortMode.NameAscending;
 
@@ -150,14 +150,25 @@ namespace shopping_app.Pages
 			SortShoppingListProductsButton.Text = sortMode switch
 			{
 				ShoppingListProductSortMode.NameDescending => "Z → A",
+				ShoppingListProductSortMode.PickedUpStatus => "☑",
 				_ => "A → Z"
+			};
+
+			string sortDescription = sortMode switch
+			{
+				ShoppingListProductSortMode.NameDescending =>
+					"Sorted Z to A. Tap to sort by pickup status.",
+
+				ShoppingListProductSortMode.PickedUpStatus =>
+					"Sorted by pickup status with unpicked products first. Tap to sort A to Z.",
+
+				_ =>
+					"Sorted A to Z. Tap to sort Z to A."
 			};
 
 			SemanticProperties.SetDescription(
 				SortShoppingListProductsButton,
-				sortMode == ShoppingListProductSortMode.NameAscending
-					? "Sorted A to Z. Tap to sort Z to A."
-					: "Sorted Z to A. Tap to sort A to Z.");
+				sortDescription);
 
 			StatusLabel.Text = ShoppingListProductFilter.GetStatusText(
 				items.Count,
@@ -226,10 +237,17 @@ namespace shopping_app.Pages
 
 		private void OnSortProductsClicked(object? sender, EventArgs e)
 		{
-			// Toggle between the only two sort directions this checklist needs.
-			sortMode = sortMode == ShoppingListProductSortMode.NameAscending
-				? ShoppingListProductSortMode.NameDescending
-				: ShoppingListProductSortMode.NameAscending;
+			// Match the other list screens by cycling through each available mode.
+			sortMode = sortMode switch
+			{
+				ShoppingListProductSortMode.NameAscending =>
+					ShoppingListProductSortMode.NameDescending,
+
+				ShoppingListProductSortMode.NameDescending =>
+					ShoppingListProductSortMode.PickedUpStatus,
+
+				_ => ShoppingListProductSortMode.NameAscending
+			};
 
 			int displayedCount = ApplyFilter();
 
@@ -291,6 +309,12 @@ namespace shopping_app.Pages
 
 					item.PriceInCents = checked((long)(price.Value * 100m));
 					item.PickedUp = true;
+
+					if (sortMode == ShoppingListProductSortMode.PickedUpStatus)
+					{
+						ApplyFilter();
+					}
+
 					await UpdateRunningTotalsAsync();
 				}
 				else
@@ -303,6 +327,12 @@ namespace shopping_app.Pages
 						pickedUp: false);
 
 					item.PickedUp = false;
+
+					if (sortMode == ShoppingListProductSortMode.PickedUpStatus)
+					{
+						ApplyFilter();
+					}
+
 					await UpdateRunningTotalsAsync();
 				}
 			}

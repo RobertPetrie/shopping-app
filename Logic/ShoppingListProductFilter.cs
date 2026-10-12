@@ -8,7 +8,8 @@ namespace shopping_app.Logic
 	public enum ShoppingListProductSortMode
 	{
 		NameAscending,
-		NameDescending
+		NameDescending,
+		PickedUpStatus
 	}
 
 	public static class ShoppingListProductFilter
@@ -40,6 +41,16 @@ namespace shopping_app.Logic
 						item => item.ProductName,
 						StringComparer.CurrentCultureIgnoreCase)
 					.ThenByDescending(item => item.ProductID)
+					.ToList(),
+
+				ShoppingListProductSortMode.PickedUpStatus => visibleItems
+					// Keep products still needed at the top, then group picked-up
+					// products underneath them. Alphabetize inside each group.
+					.OrderBy(item => item.PickedUp)
+					.ThenBy(
+						item => item.ProductName,
+						StringComparer.CurrentCultureIgnoreCase)
+					.ThenBy(item => item.ProductID)
 					.ToList(),
 
 				_ => visibleItems

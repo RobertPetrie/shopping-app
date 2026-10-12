@@ -73,7 +73,7 @@
                 TextChanged="OnSearchTextChanged"
                 SemanticProperties.Description="Search products on this shopping list" />
 
-            <!-- Match the other list screens, but only cycle A-Z and Z-A here. -->
+            <!-- Match the other list screens: A-Z, Z-A, then pickup status. -->
             <Button
                 x:Name="SortShoppingListProductsButton"
                 Grid.Row="1"
