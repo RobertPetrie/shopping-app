@@ -18,6 +18,7 @@ namespace shopping_app.Pages
 		private bool isLoading;
 		private bool isPageActive;
 		private bool needsRefresh = true;
+		private bool refreshRequestedWhileLoading;
 		private bool suppressPickedUpChange;
 		private bool isPricePopupOpen;
 		private TaskCompletionSource<decimal?>? pricePopupResultSource;
@@ -88,13 +89,46 @@ namespace shopping_app.Pages
 
 		private void QueueRefresh()
 		{
-			Dispatcher.Dispatch(async () => await RefreshProductsAsync());
+			Dispatcher.Dispatch(async () =>
+			{
+				if (!isPageActive || !needsRefresh)
+				{
+					return;
+				}
+
+				// Shell can call OnNavigatedTo before the underlying page reports
+				// IsLoaded again. Retry shortly instead of silently losing the
+				// refresh request and showing a stale shopping list.
+				if (!IsLoaded)
+				{
+					Dispatcher.DispatchDelayed(
+						TimeSpan.FromMilliseconds(100),
+						QueueRefresh);
+					return;
+				}
+
+				await RefreshProductsAsync();
+			});
 		}
 
 		private async Task RefreshProductsAsync()
 		{
-			if (!isPageActive || !IsLoaded || isLoading || !needsRefresh)
+			if (!isPageActive || !needsRefresh)
 			{
+				return;
+			}
+
+			if (!IsLoaded)
+			{
+				QueueRefresh();
+				return;
+			}
+
+			if (isLoading)
+			{
+				// If navigation returns while an older refresh is still finishing,
+				// remember that another database read is required afterwards.
+				refreshRequestedWhileLoading = true;
 				return;
 			}
 
@@ -127,6 +161,10 @@ namespace shopping_app.Pages
 				taxRate = await database.GetTaxRateAsync();
 				ApplyFilter();
 				await UpdateRunningTotalsAsync();
+
+				DevelopmentDebugArtifacts.WriteLine(
+					$"[PAGE ShoppingListProducts] Refreshed {items.Count} products. "
+					+ $"ShoppingListID={shoppingListID}.");
 			}
 			catch (Exception ex)
 			{
@@ -146,6 +184,12 @@ namespace shopping_app.Pages
 				isLoading = false;
 				AddProductButton.IsEnabled = shoppingListID > 0;
 				SortShoppingListProductsButton.IsEnabled = items.Count > 0;
+
+				if (refreshRequestedWhileLoading && isPageActive)
+				{
+					refreshRequestedWhileLoading = false;
+					QueueRefresh();
+				}
 			}
 		}
 

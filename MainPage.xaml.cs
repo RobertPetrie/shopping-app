@@ -495,6 +495,11 @@ namespace shopping_app
 					price: 0m);
 
 				shoppingListProductIds.Add(product.ID);
+
+				DevelopmentDebugArtifacts.WriteLine(
+					$"[ACTION MainPage] Added ProductID={product.ID} "
+					+ $"Name=\"{product.Name}\" to ShoppingListID={shoppingListId}.");
+
 				SemanticScreenReader.Announce(
 					$"Added {product.Name} to shopping list.");
 			}

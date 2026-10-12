@@ -15,6 +15,17 @@ namespace shopping_app
 				.UseMauiApp<App>()
 				.UseUraniumUI()
 				.UseUraniumUIMaterial()
+
+				// UraniumUI 3.0.0 has a known StatefulButtonHandler teardown bug
+				// that can throw "PlatformView cannot be null here" when Shell
+				// removes a page. Re-register MAUI's stock ButtonHandler after
+				// UraniumUI so buttons remain safe during navigation teardown.
+				.ConfigureMauiHandlers(handlers =>
+				{
+					handlers.AddHandler<
+						Microsoft.Maui.Controls.Button,
+						Microsoft.Maui.Handlers.ButtonHandler>();
+				})
 				.ConfigureFonts(fonts =>
 				{
 					fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

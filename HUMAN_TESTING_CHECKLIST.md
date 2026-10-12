@@ -113,6 +113,8 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Tapping "Add to list" creates a ShoppingListProduct row with PickedUp = 0 and Price = 0.
 - [ ] The selector stays open after an item is added so several products can be added in one visit.
 - [ ] Back from the product selector returns to Shopping List Products and the newly added items appear.
+- [ ] On Windows, repeatedly opening Add Products and pressing Back does not throw a PlatformView/null-handler exception.
+- [ ] Immediately sorting Shopping List Products after returning from Add Products does not crash.
 - [ ] Opening the normal Products tab still shows the regular edit chevrons and + button with no "Add to list" buttons.
 - [ ] Back navigation returns to the Shopping Lists screen.
 
