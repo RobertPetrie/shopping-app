@@ -10,6 +10,7 @@ namespace shopping_app
 		private const bool ResetTestDataOnStartup = true;
 
 		private readonly AppDatabase database;
+		private static bool runtimeDiagnosticsAttached;
 
 		// Pages wait for this task before loading data so the sample records
 		// are guaranteed to be in SQLite before the first query runs.
@@ -23,6 +24,7 @@ namespace shopping_app
 			// Start each Debug launch with a clean application log so the file
 			// contains only messages from the current manual-testing session.
 			DevelopmentDebugArtifacts.ResetLog();
+			AttachRuntimeDiagnostics();
 
 			InitializeComponent();
 			this.database = database;
@@ -32,6 +34,42 @@ namespace shopping_app
 
 			DevelopmentDebugArtifacts.WriteLine(
 				$"Database location: {database.DatabasePath}");
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"[APP] Started. Platform={DeviceInfo.Platform}; "
+				+ $"Version={AppInfo.VersionString}; "
+				+ $"Thread={Environment.CurrentManagedThreadId}");
+		}
+
+		private static void AttachRuntimeDiagnostics()
+		{
+			if (runtimeDiagnosticsAttached)
+			{
+				return;
+			}
+
+			runtimeDiagnosticsAttached = true;
+
+			AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+			{
+				DevelopmentDebugArtifacts.WriteLine(
+					$"[CLR UNHANDLED] IsTerminating={e.IsTerminating}; "
+					+ $"Thread={Environment.CurrentManagedThreadId}");
+
+				DevelopmentDebugArtifacts.WriteLine(
+					e.ExceptionObject?.ToString()
+						?? "[CLR UNHANDLED] Exception object was null.");
+			};
+
+			TaskScheduler.UnobservedTaskException += (_, e) =>
+			{
+				DevelopmentDebugArtifacts.WriteLine(
+					$"[TASK UNOBSERVED] Thread={Environment.CurrentManagedThreadId}");
+
+				DevelopmentDebugArtifacts.WriteLine(e.Exception.ToString());
+
+				// Logging must not change normal exception behavior.
+			};
 		}
 
 		protected override Window CreateWindow(
@@ -61,6 +99,8 @@ namespace shopping_app
 
 			// Run the sample-data setup only once for this window.
 			window.Created -= OnWindowCreated;
+
+			DevelopmentDebugArtifacts.WriteLine("[WINDOW] Created.");
 
 			try
 			{

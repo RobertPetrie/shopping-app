@@ -73,6 +73,10 @@ namespace shopping_app
 			{
 				shoppingListIdForSelection = shoppingListId;
 
+				DevelopmentDebugArtifacts.WriteLine(
+					$"[PAGE MainPage] Entering shopping-list picker mode. "
+					+ $"ShoppingListID={shoppingListId}.");
+
 				// Keep the familiar Product list, but make it clear that this copy
 				// is being used to add existing Products to one Shopping List.
 				Title = "Add Products";
@@ -93,6 +97,11 @@ namespace shopping_app
 			base.OnNavigatedTo(args);
 
 			isPageActive = true;
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"[PAGE MainPage] NavigatedTo. "
+				+ $"PickerMode={IsShoppingListSelectionMode}; Title={Title}.");
+
 			QueueRefresh();
 		}
 
@@ -101,6 +110,10 @@ namespace shopping_app
 			base.OnNavigatedFrom(args);
 
 			isPageActive = false;
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"[PAGE MainPage] NavigatedFrom. "
+				+ $"PickerMode={IsShoppingListSelectionMode}; Title={Title}.");
 
 			try
 			{

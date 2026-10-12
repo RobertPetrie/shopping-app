@@ -43,6 +43,10 @@ namespace shopping_app.Pages
 			{
 				shoppingListID = shoppingList.ID;
 				Title = $"Shopping List - {shoppingList.DisplayDate}";
+
+				DevelopmentDebugArtifacts.WriteLine(
+					$"[PAGE ShoppingListProducts] Query received. "
+					+ $"ShoppingListID={shoppingListID}; Title={Title}.");
 				needsRefresh = true;
 				QueueRefresh();
 			}
@@ -53,6 +57,11 @@ namespace shopping_app.Pages
 			base.OnNavigatedTo(args);
 
 			isPageActive = true;
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"[PAGE ShoppingListProducts] NavigatedTo. "
+				+ $"ShoppingListID={shoppingListID}; Title={Title}.");
+
 			needsRefresh = true;
 			QueueRefresh();
 		}
@@ -61,6 +70,10 @@ namespace shopping_app.Pages
 		{
 			base.OnNavigatedFrom(args);
 			isPageActive = false;
+
+			DevelopmentDebugArtifacts.WriteLine(
+				$"[PAGE ShoppingListProducts] NavigatedFrom. "
+				+ $"ShoppingListID={shoppingListID}; Title={Title}.");
 
 			if (isPricePopupOpen)
 			{
@@ -477,6 +490,10 @@ namespace shopping_app.Pages
 			{
 				// Reuse the normal Products page in a special selection mode rather
 				// than maintaining a second copy of product search/sort UI.
+				DevelopmentDebugArtifacts.WriteLine(
+					$"[ACTION ShoppingListProducts] Open product picker. "
+					+ $"ShoppingListID={shoppingListID}.");
+
 				await Shell.Current.GoToAsync(
 					shopping_app.MainPage.ShoppingListSelectionRoute,
 					new ShellNavigationQueryParameters
