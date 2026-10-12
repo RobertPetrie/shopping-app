@@ -1,9 +1,10 @@
 name: Test Android Emulator
 
-# Manual only: this boots a real Android emulator in GitHub Actions, installs
-# the current branch's APK, launches it, and checks that the app stays open.
+# This can still be run manually on any branch, and the main build pipeline
+# also calls it automatically after a successful Windows build on main.
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
