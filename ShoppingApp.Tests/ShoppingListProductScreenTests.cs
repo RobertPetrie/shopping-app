@@ -144,6 +144,21 @@ namespace ShoppingApp.Tests
 
 				Assert.True(checkedItems.Single().PickedUp);
 
+				// Verify the exact SQLite representation requested by the UI:
+				// checked is stored as integer 1.
+				var connection = await database.GetConnectionAsync();
+				int checkedRawValue = await connection.ExecuteScalarAsync<int>(
+					"""
+                    SELECT "PickedUp"
+                    FROM "ShoppingListProduct"
+                    WHERE "ShoppingListID" = ?
+                      AND "ProductID" = ?;
+                    """,
+					shoppingList.ID,
+					product.ID);
+
+				Assert.Equal(1, checkedRawValue);
+
 				await database.SetShoppingListProductPickedUpAsync(
 					shoppingList.ID,
 					product.ID,
@@ -153,6 +168,19 @@ namespace ShoppingApp.Tests
 					shoppingList.ID);
 
 				Assert.False(uncheckedItems.Single().PickedUp);
+
+				// Unchecked is stored as integer 0.
+				int uncheckedRawValue = await connection.ExecuteScalarAsync<int>(
+					"""
+                    SELECT "PickedUp"
+                    FROM "ShoppingListProduct"
+                    WHERE "ShoppingListID" = ?
+                      AND "ProductID" = ?;
+                    """,
+					shoppingList.ID,
+					product.ID);
+
+				Assert.Equal(0, uncheckedRawValue);
 			}
 			finally
 			{

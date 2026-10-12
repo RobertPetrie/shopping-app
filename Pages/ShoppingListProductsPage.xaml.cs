@@ -166,7 +166,9 @@ namespace shopping_app.Pages
 				return;
 			}
 
-			bool previousValue = item.PickedUp;
+			// A checkbox change flips a boolean, so the value before this tap is
+			// always the opposite of the new value reported by the event.
+			bool previousValue = !e.Value;
 			item.PickedUp = e.Value;
 
 			try
