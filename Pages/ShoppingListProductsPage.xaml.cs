@@ -21,6 +21,11 @@ namespace shopping_app.Pages
 		private bool suppressPickedUpChange;
 		private bool isPricePopupOpen;
 		private TaskCompletionSource<decimal?>? pricePopupResultSource;
+
+		// Keep this checklist sorter intentionally simple: A-Z or Z-A.
+		private ShoppingListProductSortMode sortMode =
+			ShoppingListProductSortMode.NameAscending;
+
 		private List<ShoppingListProductListItem> items = new();
 
 		public ShoppingListProductsPage()
@@ -89,6 +94,7 @@ namespace shopping_app.Pages
 			isLoading = true;
 			needsRefresh = false;
 			AddProductButton.IsEnabled = false;
+			SortShoppingListProductsButton.IsEnabled = false;
 			StatusLabel.Text = "Loading products...";
 
 			try
@@ -126,6 +132,7 @@ namespace shopping_app.Pages
 			{
 				isLoading = false;
 				AddProductButton.IsEnabled = shoppingListID > 0;
+				SortShoppingListProductsButton.IsEnabled = items.Count > 0;
 			}
 		}
 
@@ -135,9 +142,22 @@ namespace shopping_app.Pages
 
 			var displayedItems = ShoppingListProductFilter.Filter(
 				items,
-				searchText);
+				searchText,
+				sortMode);
 
 			ProductsView.ItemsSource = displayedItems;
+
+			SortShoppingListProductsButton.Text = sortMode switch
+			{
+				ShoppingListProductSortMode.NameDescending => "Z → A",
+				_ => "A → Z"
+			};
+
+			SemanticProperties.SetDescription(
+				SortShoppingListProductsButton,
+				sortMode == ShoppingListProductSortMode.NameAscending
+					? "Sorted A to Z. Tap to sort Z to A."
+					: "Sorted Z to A. Tap to sort A to Z.");
 
 			StatusLabel.Text = ShoppingListProductFilter.GetStatusText(
 				items.Count,
@@ -192,6 +212,25 @@ namespace shopping_app.Pages
 			object? sender,
 			TextChangedEventArgs e)
 		{
+			int displayedCount = ApplyFilter();
+
+			if (displayedCount > 0)
+			{
+				Dispatcher.Dispatch(() =>
+					ProductsView.ScrollTo(
+						0,
+						position: ScrollToPosition.Start,
+						animate: false));
+			}
+		}
+
+		private void OnSortProductsClicked(object? sender, EventArgs e)
+		{
+			// Toggle between the only two sort directions this checklist needs.
+			sortMode = sortMode == ShoppingListProductSortMode.NameAscending
+				? ShoppingListProductSortMode.NameDescending
+				: ShoppingListProductSortMode.NameAscending;
+
 			int displayedCount = ApplyFilter();
 
 			if (displayedCount > 0)

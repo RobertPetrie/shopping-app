@@ -16,10 +16,13 @@
 
         <Grid
             Grid.Row="0"
+            RowDefinitions="Auto,Auto"
             ColumnDefinitions="Auto,*,Auto"
+            RowSpacing="12"
             ColumnSpacing="16">
 
             <VerticalStackLayout
+                Grid.ColumnSpan="2"
                 Spacing="2"
                 VerticalOptions="Center">
 
@@ -35,23 +38,12 @@
                     TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
             </VerticalStackLayout>
 
-            <SearchBar
-                x:Name="ProductSearchBar"
-                AutomationId="ShoppingListProductSearchBar"
-                Grid.Column="1"
-                Placeholder="Search products"
-                IsSpellCheckEnabled="False"
-                IsTextPredictionEnabled="False"
-                VerticalOptions="Center"
-                TextChanged="OnSearchTextChanged"
-                SemanticProperties.Description="Search products on this shopping list" />
-
-            <!-- Running amounts update as products are checked or unchecked. -->
+            <!-- Keep the running amounts pinned to the upper-right corner. -->
             <VerticalStackLayout
                 Grid.Column="2"
                 Spacing="2"
                 HorizontalOptions="End"
-                VerticalOptions="Center">
+                VerticalOptions="Start">
 
                 <Label
                     x:Name="SubtotalLabel"
@@ -68,6 +60,32 @@
                     HorizontalTextAlignment="End"
                     SemanticProperties.Description="Picked-up item total including tax" />
             </VerticalStackLayout>
+
+            <SearchBar
+                x:Name="ProductSearchBar"
+                AutomationId="ShoppingListProductSearchBar"
+                Grid.Row="1"
+                Grid.ColumnSpan="2"
+                Placeholder="Search products"
+                IsSpellCheckEnabled="False"
+                IsTextPredictionEnabled="False"
+                VerticalOptions="Center"
+                TextChanged="OnSearchTextChanged"
+                SemanticProperties.Description="Search products on this shopping list" />
+
+            <!-- Match the other list screens, but only cycle A-Z and Z-A here. -->
+            <Button
+                x:Name="SortShoppingListProductsButton"
+                Grid.Row="1"
+                Grid.Column="2"
+                StyleClass="FilledTonalButton"
+                Text="A → Z"
+                FontSize="14"
+                Padding="18,10"
+                MinimumWidthRequest="92"
+                VerticalOptions="Center"
+                Clicked="OnSortProductsClicked"
+                SemanticProperties.Description="Sorted A to Z. Tap to sort Z to A." />
         </Grid>
 
         <CollectionView

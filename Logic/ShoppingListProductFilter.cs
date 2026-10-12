@@ -5,11 +5,19 @@ namespace shopping_app.Logic
 	/// <summary>
 	/// Search rules for the products belonging to one shopping list.
 	/// </summary>
+	public enum ShoppingListProductSortMode
+	{
+		NameAscending,
+		NameDescending
+	}
+
 	public static class ShoppingListProductFilter
 	{
 		public static List<ShoppingListProductListItem> Filter(
 			IEnumerable<ShoppingListProductListItem> items,
-			string? searchText)
+			string? searchText,
+			ShoppingListProductSortMode sortMode =
+				ShoppingListProductSortMode.NameAscending)
 		{
 			ArgumentNullException.ThrowIfNull(items);
 
@@ -24,13 +32,23 @@ namespace shopping_app.Logic
 						StringComparison.CurrentCultureIgnoreCase));
 			}
 
-			// Product name is the natural order for this checklist-style screen.
-			return visibleItems
-				.OrderBy(
-					item => item.ProductName,
-					StringComparer.CurrentCultureIgnoreCase)
-				.ThenBy(item => item.ProductID)
-				.ToList();
+			// This screen only needs the two quick alphabetical directions.
+			return sortMode switch
+			{
+				ShoppingListProductSortMode.NameDescending => visibleItems
+					.OrderByDescending(
+						item => item.ProductName,
+						StringComparer.CurrentCultureIgnoreCase)
+					.ThenByDescending(item => item.ProductID)
+					.ToList(),
+
+				_ => visibleItems
+					.OrderBy(
+						item => item.ProductName,
+						StringComparer.CurrentCultureIgnoreCase)
+					.ThenBy(item => item.ProductID)
+					.ToList()
+			};
 		}
 
 		public static string GetStatusText(

@@ -91,7 +91,10 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Invalid, blank, negative, or more-than-two-decimal price input shows validation feedback and does not close the popup.
 - [ ] Tapping a checked box saves PickedUp = 0 without opening the price popup.
 - [ ] Unchecking an item preserves its previously entered price.
-- [ ] The Shopping List Products screen shows Subtotal and Total in the top-right corner.
+- [ ] The Shopping List Products screen shows Subtotal and Total in the upper-right corner above the search/sort row.
+- [ ] The Shopping List Products sort button appears to the right of search where the totals previously sat.
+- [ ] The Shopping List Products sort button toggles A → Z and Z → A only.
+- [ ] Search and A → Z / Z → A sorting work together.
 - [ ] Subtotal includes only products currently marked picked up.
 - [ ] Total adds sales tax only for picked-up products whose Product Category is taxable.
 - [ ] Checking an item with a saved price updates Subtotal and Total immediately after the price popup is saved.

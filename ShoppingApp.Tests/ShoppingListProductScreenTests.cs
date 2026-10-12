@@ -46,6 +46,35 @@ namespace ShoppingApp.Tests
 		}
 
 		[Fact]
+		public void Filter_WithDescendingSort_ReturnsProductsZToA()
+		{
+			// The Shopping List Products sort button should reverse the same
+			// product-name ordering used by the default A-to-Z view.
+			var result = ShoppingListProductFilter.Filter(
+				FilterItems,
+				string.Empty,
+				ShoppingListProductSortMode.NameDescending);
+
+			Assert.Equal(
+				["Chocolate", "Bananas", "Apple Juice"],
+				result.Select(item => item.ProductName));
+		}
+
+		[Fact]
+		public void Filter_WithSearchAndDescendingSort_AppliesBothRules()
+		{
+			// Search should continue working after the shopper switches to Z-to-A.
+			var result = ShoppingListProductFilter.Filter(
+				FilterItems,
+				"a",
+				ShoppingListProductSortMode.NameDescending);
+
+			Assert.Equal(
+				["Chocolate", "Bananas", "Apple Juice"],
+				result.Select(item => item.ProductName));
+		}
+
+		[Fact]
 		public void Filter_WithSearch_IgnoresCaseAndExtraSpaces()
 		{
 			// The live search should be forgiving about capitalization and spaces
