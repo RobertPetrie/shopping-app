@@ -56,7 +56,7 @@
     <MauiXamlInflator>SourceGen</MauiXamlInflator>
 
     <!-- Display name -->
-    <ApplicationTitle>shopping-app</ApplicationTitle>
+    <ApplicationTitle>Robert's Shopping App</ApplicationTitle>
 
     <!-- App Identifier -->
     <ApplicationId>com.companyname.shoppingapp</ApplicationId>
@@ -98,11 +98,12 @@
 
   <ItemGroup>
 
-    <!-- App Icon -->
-    <MauiIcon
-			Include="Resources\AppIcon\appicon.svg"
-			ForegroundFile="Resources\AppIcon\appiconfg.svg"
-			Color="#512BD4" />
+    <!-- App icon for Robert's Shopping App.
+         BaseSize lets MAUI create the right sizes for each device.
+         Keep the file name 'appicon' so platform icon references still work. -->
+    <MauiIcon Include="Resources\AppIcon\appicon.png"
+              BaseSize="1024,1024"
+              Color="#364CF1" />
 
     <!-- Splash Screen -->
     <MauiSplashScreen
