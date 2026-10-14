@@ -4,10 +4,9 @@ namespace shopping_app
 {
 	public partial class App : Application
 	{
-		// Keep this true while developing to start every launch with the same
-		// clean sample data. WARNING: when true, all existing app data is erased.
-		// Set it to false whenever you want the database to keep real changes.
-		private const bool ResetTestDataOnStartup = true;
+		// Keep shopping lists and products across launches, including Debug runs.
+		// Enabling the old reset would erase a week-long shopping list on restart.
+		private const bool ResetTestDataOnStartup = false;
 
 		private readonly AppDatabase database;
 		private static bool runtimeDiagnosticsAttached;
