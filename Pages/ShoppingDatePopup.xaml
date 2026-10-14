@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="shopping_app.Pages.ShoppingDatePopup"
+    IsVisible="False">
+
+    <!-- Use the same in-page popup pattern as the shopping-list price prompt. -->
+    <Grid BackgroundColor="#99000000" Padding="24">
+        <Border
+            StyleClass="SurfaceContainer,Rounded"
+            Padding="24"
+            MaximumWidthRequest="420"
+            MinimumWidthRequest="280"
+            HorizontalOptions="Center"
+            VerticalOptions="Center">
+
+            <Border.Shadow>
+                <Shadow Opacity="0.25" Radius="16" Offset="0,6" />
+            </Border.Shadow>
+
+            <VerticalStackLayout Spacing="16">
+                <Label
+                    Text="Planned Shopping Date"
+                    FontSize="20"
+                    FontAttributes="Bold" />
+
+                <Label
+                    Text="When do you plan to shop?"
+                    FontSize="14"
+                    TextColor="{AppThemeBinding Light=#6B6B6B, Dark=#C7C7C7}" />
+
+                <!-- The app always uses month/day/year regardless of device locale. -->
+                <DatePicker
+                    x:Name="ShoppingDatePicker"
+                    AutomationId="PlannedShoppingDatePicker"
+                    Format="MM/dd/yyyy"
+                    SemanticProperties.Description="Planned shopping date" />
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <Button
+                        StyleClass="FilledTonalButton"
+                        Text="✓"
+                        FontSize="22"
+                        Clicked="OnConfirmClicked"
+                        SemanticProperties.Description="Save planned shopping date" />
+
+                    <Button
+                        Grid.Column="1"
+                        StyleClass="FilledTonalButton"
+                        Text="✕"
+                        FontSize="22"
+                        Clicked="OnCancelClicked"
+                        SemanticProperties.Description="Cancel changing shopping date" />
+                </Grid>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentView>
