@@ -73,7 +73,16 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Search and date sorting work together.
 - [ ] Shopping-list empty state looks correct when there are no matches.
 - [ ] Add Shopping List button is visible and styled correctly.
-- [ ] Add Shopping List button currently shows the placeholder message instead of creating a blank record.
+- [ ] Add Shopping List opens a centered planned-date popup with ✓ and ✕ actions.
+- [ ] Opening the date popup defaults to the device's current local date displayed as MM/dd/yyyy.
+- [ ] Canceling the date popup (✕ or Android Back) does not create a list.
+- [ ] Confirming the date opens Add Products directly; no empty list page in between.
+- [ ] Backing out of Add Products before choosing the first product leaves no shopping list.
+- [ ] Choosing the first product saves the new dated list and opens that list with the product unchecked and priced at zero.
+- [ ] Tapping the date shown at the top of an existing list opens the same date popup, initially set to that list's saved date.
+- [ ] Changing a list's planned date updates the displayed date and sorting without changing products, pickup flags, or prices.
+- [ ] Canceling date editing leaves the original date unchanged.
+- [ ] Restarting the app keeps a newly created list and its products.
 - [ ] Tapping a shopping-list card opens that list's Product screen.
 - [ ] The Shopping List Products screen shows only ShoppingListProduct rows related to the selected shopping list.
 - [ ] Each row displays the related Product name.
@@ -111,7 +120,7 @@ Automated tests should still be added whenever a feature can be tested reliably 
 - [ ] Product rows show an "Add to list" button instead of the normal edit chevron in selection mode.
 - [ ] Products already on the selected shopping list show "Added" and cannot be added twice.
 - [ ] Tapping "Add to list" creates a ShoppingListProduct row with PickedUp = 0 and Price = 0.
-- [ ] The selector stays open after an item is added so several products can be added in one visit.
+- [ ] Selecting one product immediately returns to the shopping list; tapping its + button opens Add Products again for another item.
 - [ ] Back from the product selector returns to Shopping List Products and the newly added items appear.
 - [ ] On Windows, repeatedly opening Add Products and pressing Back does not throw a PlatformView/null-handler exception.
 - [ ] Immediately sorting Shopping List Products after returning from Add Products does not crash.
