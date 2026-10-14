@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:models="clr-namespace:shopping_app.Models"
+    xmlns:pages="clr-namespace:shopping_app.Pages"
     x:Class="shopping_app.Pages.ShoppingListsPage"
     Title="Shopping Lists">
 
@@ -173,6 +174,12 @@
             HorizontalOptions="Start"
             Clicked="OnAddShoppingListClicked"
             SemanticProperties.Description="Add a shopping list" />
+
+        <!-- Shared date popup used for new and existing shopping lists. -->
+        <pages:ShoppingDatePopup
+            x:Name="ShoppingDatePopup"
+            Grid.RowSpan="3"
+            ZIndex="110" />
 
     </Grid>
 
