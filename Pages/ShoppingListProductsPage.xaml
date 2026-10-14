@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:models="clr-namespace:shopping_app.Models"
+    xmlns:pages="clr-namespace:shopping_app.Pages"
     x:Class="shopping_app.Pages.ShoppingListProductsPage"
     Title="Shopping List"
     Shell.NavBarIsVisible="True"
@@ -30,6 +31,18 @@
                     Text="Shopping List"
                     FontSize="30"
                     FontAttributes="Bold" />
+
+                <!-- Tap the date to reschedule this shopping trip. -->
+                <Button
+                    x:Name="ShoppingDateButton"
+                    AutomationId="EditShoppingDateButton"
+                    Text="Shopping Date"
+                    FontSize="15"
+                    Padding="0,4"
+                    BackgroundColor="Transparent"
+                    HorizontalOptions="Start"
+                    Clicked="OnShoppingDateClicked"
+                    SemanticProperties.Description="Edit the planned shopping date" />
 
                 <Label
                     x:Name="StatusLabel"
@@ -182,6 +195,11 @@
             ContentPage. Windows can fail while adding a Shell modal page, while
             this overlay gives the same centered popup without changing navigation.
         -->
+        <pages:ShoppingDatePopup
+            x:Name="ShoppingDatePopup"
+            Grid.RowSpan="3"
+            ZIndex="110" />
+
         <Grid
             x:Name="PricePopupOverlay"
             Grid.RowSpan="3"
