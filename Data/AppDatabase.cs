@@ -817,6 +817,76 @@ namespace shopping_app.Data
 		}
 
 		/// <summary>
+		/// Save the first product and its new shopping list together.
+		/// If either insert fails, SQLite rolls both back: no empty draft exists.
+		/// </summary>
+		public async Task<ShoppingList> CreateShoppingListWithFirstProductAsync(
+			DateOnly shoppingDate,
+			int productID)
+		{
+			if (productID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(nameof(productID));
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var shoppingList = new ShoppingList
+			{
+				ShoppingDate = shoppingDate,
+				CreatedOn = DateTime.UtcNow,
+				TotalCost = 0m,
+				PickedUp = false
+			};
+
+			await database.RunInTransactionAsync(connection =>
+			{
+				// Never create a list around a missing catalog product.
+				if (connection.Find<Product>(productID) is null)
+				{
+					throw new KeyNotFoundException("The selected product no longer exists.");
+				}
+
+				connection.Insert(shoppingList);
+				connection.Insert(new ShoppingListProduct
+				{
+					ShoppingListID = shoppingList.ID,
+					ProductID = productID,
+					Price = 0m,
+					PickedUp = false,
+					CreatedOn = DateTime.UtcNow
+				});
+			}).ConfigureAwait(false);
+
+			return shoppingList;
+		}
+
+		/// <summary>
+		/// Change only the planned date of an existing list.
+		/// Its selected products, prices, and pickup state stay untouched.
+		/// </summary>
+		public async Task SetShoppingListDateAsync(int shoppingListID, DateOnly date)
+		{
+			if (shoppingListID <= 0)
+			{
+				throw new ArgumentOutOfRangeException(nameof(shoppingListID));
+			}
+
+			var database = await GetConnectionAsync().ConfigureAwait(false);
+			var shoppingList = await database.Table<ShoppingList>()
+				.Where(list => list.ID == shoppingListID)
+				.FirstOrDefaultAsync().ConfigureAwait(false);
+
+			if (shoppingList is null)
+			{
+				throw new KeyNotFoundException("The selected shopping list no longer exists.");
+			}
+
+			shoppingList.ShoppingDate = date;
+			shoppingList.ModifiedOn = DateTime.UtcNow;
+			await database.UpdateAsync(shoppingList).ConfigureAwait(false);
+		}
+
+		/// <summary>
 		/// Return the products assigned to one shopping list, including the
 		/// Product name needed by the checklist screen.
 		/// </summary>
