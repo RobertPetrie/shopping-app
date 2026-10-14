@@ -112,6 +112,18 @@ namespace ShoppingApp.Tests
 
 
 		[Fact]
+		public void DisplayShortDate_UsesMonthDayYearRegardlessOfLocale()
+		{
+			// The editable header must use the requested numeric date format.
+			var shoppingList = new ShoppingList
+			{
+				ShoppingDate = new DateOnly(2026, 10, 14)
+			};
+
+			Assert.Equal("10/14/2026", shoppingList.DisplayShortDate);
+		}
+
+		[Fact]
 		public void DisplayTotalCost_WhenTotalIsMissing_ShowsFriendlyMessage()
 		{
 			// A pending list may not have a final total yet.
