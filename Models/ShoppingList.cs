@@ -87,6 +87,12 @@ namespace shopping_app.Models
 			"MMMM d, yyyy",
 			CultureInfo.CurrentCulture) ?? "No shopping date";
 
+		// The date editor shows month/day/year, not the long card date.
+		[Ignore]
+		public string DisplayShortDate => ShoppingDate?.ToString(
+			"MM/dd/yyyy",
+			CultureInfo.InvariantCulture) ?? "Choose shopping date";
+
 		[Ignore]
 		public string DisplayTotalCost => TotalCost.HasValue
 			? TotalCost.Value.ToString("C", CultureInfo.CurrentCulture)
