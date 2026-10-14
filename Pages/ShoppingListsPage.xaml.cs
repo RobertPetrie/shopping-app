@@ -33,6 +33,7 @@ namespace shopping_app.Pages
 			base.OnNavigatedTo(args);
 
 			isPageActive = true;
+			needsRefresh = true;
 			QueueRefresh();
 		}
 
@@ -40,6 +41,7 @@ namespace shopping_app.Pages
 		{
 			base.OnNavigatedFrom(args);
 			isPageActive = false;
+			ShoppingDatePopup.Cancel();
 		}
 
 		private void OnPageLoaded(object? sender, EventArgs e)
@@ -212,12 +214,60 @@ namespace shopping_app.Pages
 			object? sender,
 			EventArgs e)
 		{
-			// The list screen is ready now. The editor will be a separate
-			// feature so this button does not create an accidental blank record.
-			await DisplayAlertAsync(
-				"New Shopping List",
-				"The shopping list editor is the next piece to build.",
-				"OK");
+			if (isLoading || isOpeningList)
+			{
+				return;
+			}
+
+			isOpeningList = true;
+			UpdateButtons();
+
+			try
+			{
+				// Start with the device's local date, but do not create a record yet.
+				DateOnly? date = await ShoppingDatePopup.ShowAsync(
+					DateOnly.FromDateTime(DateTime.Today));
+
+				if (!date.HasValue)
+				{
+					return;
+				}
+
+				// Go directly to the product picker; the first selection saves
+				// both the shopping list and its first product together.
+				await Shell.Current.GoToAsync(
+					shopping_app.MainPage.ShoppingListSelectionRoute,
+					new ShellNavigationQueryParameters
+					{
+						["ShoppingDateForNewList"] = date.Value
+					});
+			}
+			catch (Exception ex)
+			{
+				DevelopmentDebugArtifacts.WriteLine(
+					$"Could not start a shopping list: {ex}");
+
+				await DisplayAlertAsync(
+					"New Shopping List",
+					"Could not open the product list. Please try again.",
+					"OK");
+			}
+			finally
+			{
+				isOpeningList = false;
+				UpdateButtons();
+			}
+		}
+
+		protected override bool OnBackButtonPressed()
+		{
+			if (ShoppingDatePopup.IsOpen)
+			{
+				ShoppingDatePopup.Cancel();
+				return true;
+			}
+
+			return base.OnBackButtonPressed();
 		}
 
 		private void UpdateButtons()
