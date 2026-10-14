@@ -68,7 +68,7 @@ The list screen currently supports:
 - Newest-first and oldest-first sorting.
 - Opening a list to see its products.
 
-The current **Add Shopping List** button is still a placeholder; full creation/editing of shopping-list headers is not finished.
+**Add Shopping List** opens a date popup (MM/dd/yyyy, initially today's local date) and then goes straight to **Add Products**. The first selected product saves the list and its first item in one database transaction; canceling before that selection creates no empty record. Each later product selection returns to the list so the user can add items gradually. The planned date can be edited by tapping it at the top of an existing shopping list.
 
 ## Shopping-list products
 
@@ -80,7 +80,7 @@ On an open shopping list, the user can:
 - Sort A → Z.
 - Sort Z → A.
 - Sort by pickup status, with unpicked items first.
-- Open **Add Products** and add multiple catalog products to the list.
+- Open **Add Products** and choose one catalog product at a time, returning automatically to the list after each addition.
 - See products already on the list as **Added** so duplicates cannot be inserted.
 - Mark an item picked up.
 - Enter the price paid when checking an item.
@@ -116,13 +116,7 @@ Release builds store `shopping.db3` in the app's private data directory. Debug b
 
 ## Important development behavior
 
-`App.xaml.cs` currently contains:
-
-```csharp
-private const bool ResetTestDataOnStartup = true;
-```
-
-With this enabled, every app launch deletes stored app records and recreates the development sample dataset. This is useful while building and testing but must be changed before the app is used for persistent real-world data.
+`App.xaml.cs` now sets `ResetTestDataOnStartup = false` by default. Lists and catalog edits survive restarts, including Debug runs. Developers may temporarily enable test-data resetting for isolated manual testing, but **doing so deletes stored app records on launch**.
 
 ## UI compatibility note
 
