@@ -32,6 +32,7 @@ namespace shopping_app
 		private readonly HashSet<int> shoppingListProductIds = new();
 
 		private int? shoppingListIdForSelection;
+		private DateOnly? shoppingDateForNewList;
 		private int? savedProductId;
 		private int? highlightProductId;
 		private bool scrollRequested;
@@ -49,7 +50,7 @@ namespace shopping_app
 		}
 
 		private bool IsShoppingListSelectionMode =>
-			shoppingListIdForSelection.HasValue;
+			shoppingListIdForSelection.HasValue || shoppingDateForNewList.HasValue;
 
 		/// <summary>
 		/// Receive either the ID returned after a product save or the Shopping
@@ -72,23 +73,33 @@ namespace shopping_app
 				&& shoppingListId > 0)
 			{
 				shoppingListIdForSelection = shoppingListId;
-
-				DevelopmentDebugArtifacts.WriteLine(
-					$"[PAGE MainPage] Entering shopping-list picker mode. "
-					+ $"ShoppingListID={shoppingListId}.");
-
-				// Keep the familiar Product list, but make it clear that this copy
-				// is being used to add existing Products to one Shopping List.
-				Title = "Add Products";
-				PageTitleLabel.Text = "Add Products";
-				AddProductButton.IsVisible = false;
-				Shell.SetNavBarIsVisible(this, true);
-				Shell.SetTabBarIsVisible(this, false);
-
-				needsRefresh = true;
-				ConfigureLoadedRows();
-				QueueRefresh();
+				shoppingDateForNewList = null;
+				ConfigureShoppingListPicker();
 			}
+
+			if (query.TryGetValue(
+					"ShoppingDateForNewList",
+					out var newListDateValue)
+				&& newListDateValue is DateOnly date)
+			{
+				// A draft has only a date in memory; SQLite stays untouched
+				// until the first product is chosen.
+				shoppingDateForNewList = date;
+				shoppingListIdForSelection = null;
+				ConfigureShoppingListPicker();
+			}
+		}
+
+		private void ConfigureShoppingListPicker()
+		{
+			Title = "Add Products";
+			PageTitleLabel.Text = "Add Products";
+			AddProductButton.IsVisible = false;
+			Shell.SetNavBarIsVisible(this, true);
+			Shell.SetTabBarIsVisible(this, false);
+			needsRefresh = true;
+			ConfigureLoadedRows();
+			QueueRefresh();
 		}
 
 		// Returning to this page may not raise Loaded again.
@@ -463,7 +474,6 @@ namespace shopping_app
 			EventArgs e)
 		{
 			if (!IsShoppingListSelectionMode
-				|| shoppingListIdForSelection is not int shoppingListId
 				|| sender is not Button button
 				|| button.BindingContext is not Product product
 				|| shoppingListProductIds.Contains(product.ID)
@@ -476,6 +486,7 @@ namespace shopping_app
 			isAddingToShoppingList = true;
 			UpdateButtons();
 
+			bool itemSaved = false;
 			try
 			{
 				if (database is null)
@@ -487,30 +498,66 @@ namespace shopping_app
 					database = services.GetRequiredService<AppDatabase>();
 				}
 
-				// A newly selected Product belongs to the list immediately, but it
-				// begins unchecked with a $0 price until the shopper picks it up.
-				await database.AddShoppingListProductAsync(
-					shoppingListId,
-					product.ID,
-					price: 0m);
+				ShoppingList? createdList = null;
 
+				if (shoppingDateForNewList is DateOnly newListDate)
+				{
+					// One transaction saves both the list and the first item.
+					// Canceling before selection has never created an empty list.
+					createdList = await database.CreateShoppingListWithFirstProductAsync(
+						newListDate,
+						product.ID);
+					shoppingListIdForSelection = createdList.ID;
+					shoppingDateForNewList = null;
+				}
+				else if (shoppingListIdForSelection is int existingListId)
+				{
+					// Adding to an existing list saves one new item at a time.
+					await database.AddShoppingListProductAsync(
+						existingListId,
+						product.ID,
+						price: 0m);
+				}
+				else
+				{
+					throw new InvalidOperationException("No shopping list was selected.");
+				}
+
+				itemSaved = true;
 				shoppingListProductIds.Add(product.ID);
 
 				DevelopmentDebugArtifacts.WriteLine(
 					$"[ACTION MainPage] Added ProductID={product.ID} "
-					+ $"Name=\"{product.Name}\" to ShoppingListID={shoppingListId}.");
+					+ $"to ShoppingListID={shoppingListIdForSelection}.");
 
 				SemanticScreenReader.Announce(
 					$"Added {product.Name} to shopping list.");
+
+				// A single selection ends the picker session.
+				await Shell.Current.GoToAsync("..");
+
+				if (createdList is not null)
+				{
+					// Creation began on Shopping Lists, so open the new
+					// list once the picker has returned to that tab.
+					await Shell.Current.GoToAsync(
+						nameof(shopping_app.Pages.ShoppingListProductsPage),
+						new ShellNavigationQueryParameters
+						{
+							["ShoppingListToOpen"] = createdList
+						});
+				}
 			}
 			catch (Exception ex)
 			{
 				DevelopmentDebugArtifacts.WriteLine(
-					$"Could not add product to shopping list: {ex}");
+					$"Could not add product or return to the list: {ex}");
 
 				await DisplayAlertAsync(
 					"Add to Shopping List",
-					"Could not add this product. Please try again.",
+					itemSaved
+						? "The product was saved, but navigation failed. Please return to your shopping list."
+						: "Could not add this product. Please try again.",
 					"OK");
 			}
 			finally
