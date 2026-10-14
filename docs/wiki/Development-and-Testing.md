@@ -21,25 +21,16 @@ dotnet restore shopping-app.slnx
 
 ## Development-data warning
 
-The current app source has:
+The default is now:
 
 ```csharp
-private const bool ResetTestDataOnStartup = true;
+private const bool ResetTestDataOnStartup = false;
 ```
 
-This is intentionally convenient for repeatable development testing but destructive for real data.
+This preserves manually created products and shopping lists across app restarts (including Debug runs), which is necessary when building a grocery list across the week.
 
-With it enabled, each launch:
+For a disposable manual-testing database only, developers can temporarily change the flag to `true`. **Warning:** doing so deletes existing shopping-list entries, products, and settings on startup before recreating the development sample dataset.
 
-1. deletes ShoppingListProduct rows;
-2. deletes Products and Shopping Lists;
-3. deletes lookup/tax rows;
-4. resets SQLite autoincrement counters;
-5. restores built-in lookup rows;
-6. inserts the development sample dataset;
-7. recalculates saved Shopping List totals.
-
-Before the app is used for persistent personal data, set this to `false` and test the non-reset startup path.
 
 ## Sample dataset
 
