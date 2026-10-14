@@ -15,6 +15,8 @@ namespace shopping_app.Pages
 		private AppDatabase? database;
 		private TaxRate? taxRate;
 		private int shoppingListID;
+		private ShoppingList? currentShoppingList;
+		private bool isEditingShoppingDate;
 		private bool isLoading;
 		private bool isPageActive;
 		private bool needsRefresh = true;
@@ -43,7 +45,8 @@ namespace shopping_app.Pages
 				&& value is ShoppingList shoppingList)
 			{
 				shoppingListID = shoppingList.ID;
-				Title = $"Shopping List - {shoppingList.DisplayDate}";
+				currentShoppingList = shoppingList;
+				UpdateShoppingDateDisplay();
 
 				DevelopmentDebugArtifacts.WriteLine(
 					$"[PAGE ShoppingListProducts] Query received. "
@@ -71,6 +74,7 @@ namespace shopping_app.Pages
 		{
 			base.OnNavigatedFrom(args);
 			isPageActive = false;
+			ShoppingDatePopup.Cancel();
 
 			DevelopmentDebugArtifacts.WriteLine(
 				$"[PAGE ShoppingListProducts] NavigatedFrom. "
@@ -141,6 +145,7 @@ namespace shopping_app.Pages
 			isLoading = true;
 			needsRefresh = false;
 			AddProductButton.IsEnabled = false;
+			ShoppingDateButton.IsEnabled = false;
 			SortShoppingListProductsButton.IsEnabled = false;
 			StatusLabel.Text = "Loading products...";
 
@@ -183,6 +188,7 @@ namespace shopping_app.Pages
 			{
 				isLoading = false;
 				AddProductButton.IsEnabled = shoppingListID > 0;
+				ShoppingDateButton.IsEnabled = shoppingListID > 0;
 				SortShoppingListProductsButton.IsEnabled = items.Count > 0;
 
 				if (refreshRequestedWhileLoading && isPageActive)
@@ -500,6 +506,12 @@ namespace shopping_app.Pages
 
 		protected override bool OnBackButtonPressed()
 		{
+			if (ShoppingDatePopup.IsOpen)
+			{
+				ShoppingDatePopup.Cancel();
+				return true;
+			}
+
 			if (isPricePopupOpen)
 			{
 				// Treat Android/Windows back as Cancel while the price card is open.
@@ -521,6 +533,68 @@ namespace shopping_app.Pages
 			item.PickedUp = value;
 			checkBox.IsChecked = value;
 			suppressPickedUpChange = false;
+		}
+
+		private void UpdateShoppingDateDisplay()
+		{
+			string dateText = currentShoppingList?.DisplayShortDate
+				?? "Choose shopping date";
+
+			ShoppingDateButton.Text = $"Shopping Date: {dateText}  ✎";
+			Title = $"Shopping List - {dateText}";
+		}
+
+		private async void OnShoppingDateClicked(object? sender, EventArgs e)
+		{
+			if (isEditingShoppingDate || isLoading
+				|| shoppingListID <= 0 || currentShoppingList is null)
+			{
+				return;
+			}
+
+			isEditingShoppingDate = true;
+			ShoppingDateButton.IsEnabled = false;
+
+			try
+			{
+				// Unlike a new list, an existing list starts with its saved date.
+				DateOnly? date = await ShoppingDatePopup.ShowAsync(
+					currentShoppingList.ShoppingDate
+						?? DateOnly.FromDateTime(DateTime.Today));
+
+				if (!date.HasValue || date.Value == currentShoppingList.ShoppingDate)
+				{
+					return;
+				}
+
+				if (database is null)
+				{
+					var services = Handler?.MauiContext?.Services
+						?? throw new InvalidOperationException(
+							"The page's app services are unavailable.");
+
+					database = services.GetRequiredService<AppDatabase>();
+				}
+
+				await database.SetShoppingListDateAsync(shoppingListID, date.Value);
+				currentShoppingList.ShoppingDate = date.Value;
+				UpdateShoppingDateDisplay();
+			}
+			catch (Exception ex)
+			{
+				DevelopmentDebugArtifacts.WriteLine(
+					$"Could not update planned shopping date: {ex}");
+
+				await DisplayAlertAsync(
+					"Shopping Date",
+					"Could not change the shopping date. Please try again.",
+					"OK");
+			}
+			finally
+			{
+				isEditingShoppingDate = false;
+				ShoppingDateButton.IsEnabled = shoppingListID > 0 && !isLoading;
+			}
 		}
 
 		private async void OnAddProductClicked(object? sender, EventArgs e)
